@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html class="no-js">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+        <title></title>
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <link rel="stylesheet" href="css/bootstrap.min.css">
+        <style>
+            body {
+                padding-top: 50px;
+                padding-bottom: 20px;
+                background-color: grey;
+            }
+            #main-content{
+              position:relative;
+              width: 400px;
+              heigh: 400px;
+              top:30%;
+              left:35%;
+            }
+            #image-holder{
+              visibility: hidden;
+              width:304px;
+              height:228px;
+              position:relative;
+            }
+            #instructs{
+              position:relative;
+              top:25%;
+            }
+            #stimulus1{
+              position:absolute;
+              top:0%;
+              left:0%;
+              width:450px;
+              height:450px;
+              background-image: url('./images/indoor/2.jpg')
+            }
+            #stimulus2{
+              position:absolute;
+              top:0%;
+              left:0%;
+              opacity: 0.5;
+              width:450px;
+              height:450px;
+              background-image: url('./images/indoor/2.jpg')
+            }
+
+
+        </style>
+        <link rel="stylesheet" href="css/bootstrap-theme.min.css">
+        <link rel="stylesheet" href="css/main.css">
+    </head>
+    <body>
+
+    <div id="main-content">
+      <div id="image-holder">
+
+        <img id="stimulus1" src="./images/indoor/1.jpg" >
+        <img id="stimulus2" src="./images/indoor/2.jpg" >
+
+      </div>
+      <div id="instructs">Hi! To continue on to experiment, press
+      the 'n' key!</div>
+    </div>
+
+    </div> <!-- /container -->
+        <script>window.jQuery || document.write('<script src="bower_components/jquery/dist/jquery.min.js"><\/script>')</script>
+
+        <script src="js/vendor/bootstrap.min.js"></script>
+
+        <script src="js/main.js"></script>
+
+        <script>
+
+          var windowWidth = $(window).width();
+          var windowHeight = $(window).height();
+          var stimImage1 = $("#stimulus1");
+          var stimImage2 = $("#stimulus2");
+        //  stimImage.width(550);
+        //  stimImage.height(550);
+        //  stimImage.offset({top: windowHeight/2 - stimImage.height()/2, left: windowWidth/2 - stimImage.width()/2});
+          var i = 1;
+          $(window).bind('keypress', function(e) {
+               sendKeypress(e.keyCode);
+          });
+
+      var connection;
+      var date = new Date();
+      var inExperiment = false;
+
+      function sendKeypress(key){
+
+          //if(inExperiment)  connection.send('key:' + key + ',time:' + date.getTime());
+          //else if(key == 'n') connection.send('next');
+        // do demo for megan
+          instructions["showPics"]("junk,indoor," + (Math.floor(Math.random() * 84) + 1) +
+          ",male_neut," + (Math.floor(Math.random() * 65) + 1) + ",0.5");
+          $('#image-holder').css('visibility', 'visible');
+          $('#instructs').hide();
+
+
+      }
+
+      var instructions = {
+          /* function takes a category (i.e. indoor), imagename (1.jpg),
+          category2, image2, and opacity of the second image (should be
+          a value between 0 and 1).  Returns "stim_onset:timeInMsSinceNewYears"
+          to websockets server */
+          "showPics" : function(args) {
+          args = args.split(',')
+          $("#image-holder").css('visibility', '');
+          var category1 = args[1];
+          var image1 = args[2];
+          var category2 = args[3];
+          var image2 = args[4];
+          var opacity2 = args[5];
+            stimImage1.attr("src", "./images/" + category1 + "/" +
+              image1 +".jpg");
+            stimImage2.attr("src", "./images/" + category2 + "/" +
+              image2 +".jpg");
+            stimImage2.attr("opacity", opacity2);
+            //if(connection)  connection.send("stim_onset:" + date.getTime());
+        },
+
+        "showInstructs" : function(args){
+          $("#image-holder").css('visibility', 'hidden');
+          var instructString = args[1];
+          $("#instructs").text(instructString);
+        },
+
+        "hideInstructs" : function(args){
+          $("#instructs").text("");
+        },
+      };
+
+      var sendCommands = [
+      "startAcquire", "pauseAcquire", "endAcquire"
+    ];
+
+
+        $(function () {
+            // if user is running mozilla then use it's built-in WebSocket
+            window.WebSocket = window.WebSocket || window.MozWebSocket;
+
+            connection = new WebSocket('ws://127.0.0.1:8887');
+            $.connection = connection;
+            connection.onopen = function () {
+                // connection is opened and ready to use
+            };
+
+            connection.onerror = function (error) {
+                // an error occurred when sending/receiving data
+            };
+
+            /* When a message is recieved from the server, look up the function
+            in the instructions table and execute it (if it is a valid
+            instruction) */
+
+            connection.onmessage = function (message) {
+              var args = message.data.split(",");
+              console.log(args);
+              if(fun = instructions[args[0]])  fun(args);
+              else
+                console.log(args[0]);
+            };
+        });
+
+        </script>
+    </body>
+</html>

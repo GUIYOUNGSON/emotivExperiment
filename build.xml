@@ -1,0 +1,47 @@
+<project>
+
+    <target name="clean">
+				<delete dir="emotiv/build"/>
+        <delete dir="build"/>
+    </target>
+
+		<path id="classpath">
+			<fileset dir="emotiv/lib"/>
+			<fileset dir="emotiv/build"/>
+			<fileset dir="src"/>
+		</path>
+
+		<target name ="emotiv">
+			<javac srcdir="emotiv/src" destdir="emotiv/build" classpathref="classpath"/>
+		</target>
+
+		<target name ="eeglog" depends="emotiv">
+			<java fork="true" classname="EEGLog">
+					<classpath>
+							<path refid="classpath"/>
+							<path location="emotiv/build"/>
+					</classpath>
+			</java>
+		</target>
+
+
+    <target name="compile" depends="emotiv">
+				<mkdir dir="build"/>
+        <javac srcdir="src" destdir="build" classpathref="classpath"/>
+    </target>
+
+
+    <target name="jar">
+        <mkdir dir="build/jar"/>
+        <jar destfile="build/jar/HelloWorld.jar" basedir="build/classes">
+            <manifest>
+                <attribute name="Main-Class" value="oata.HelloWorld"/>
+            </manifest>
+        </jar>
+    </target>
+
+    <target name="run">
+        <java jar="build/jar/HelloWorld.jar" fork="true"/>
+    </target>
+
+</project>
