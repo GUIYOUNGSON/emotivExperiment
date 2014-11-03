@@ -25,6 +25,8 @@ public class AttentionExperiment{
   }
 
   public void addEpoch(String epochType) throws Exception{
+
+    // Check that the epoch type matches a known epoch type
     boolean validEpochType = false;
     for(int i = 0; i < epochTypes.length; i++){
       if(epochTypes[i].equals(epochType)){
@@ -39,11 +41,18 @@ public class AttentionExperiment{
     epochQueue.add(thisEpoch);
   }
 
-  public void addTrials(Iterable<double[][]> trials, int numTrials){
-    for(double[][] trial : trials){
-      thisEpoch.addTrial(trial, "12345");
+  public void addTrialAndClear(List<Double>[] data){
+    double[][] arrayData = new double[NUM_CHANNELS][];
+    int i = 0;
+    for(List<Double> channelData : data){
+      arrayData[i] = channelData.toArray(new double[channelData.size()]);
+      i++;
+      data[i].clear();
     }
+
+    thisEpoch.addTrial(arrayData);
   }
+
 
 
 
@@ -60,24 +69,21 @@ public class AttentionExperiment{
       trialQueue = new LinkedList<Trial>();
     }
 
-    public void addTrial(double[][] data, String timeStamp){
-      trialQueue.add(new Trial(data, timeStamp));
+    public void addTrial(double[][] data){
+      trialQueue.add(new Trial(data));
     }
 
     public void flushEpochToFile(){
       writer.println("Epoch: " + epochNum + ", EpochType: " + epochType);
       for(Trial tri : trialQueue){
-        writer.println(tri.timeStamp);
+        writer.println(tri);
       }
     }
 
     public class Trial{
-
       double[][] data;
-      String timeStamp;
-      public Trial(double[][] data, String timeStamp){
+      public Trial(double[][] data){
         this.data = data;
-        this.timeStamp = timeStamp;
       }
     }
 

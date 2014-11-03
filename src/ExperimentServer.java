@@ -12,81 +12,32 @@ import org.java_websocket.handshake.ClientHandshake;
 import org.java_websocket.server.WebSocketServer;
 
 import java.util.*;
+
+
 /**
 * A simple WebSocketServer implementation. Keeps track of a "chatroom".
 */
 public class ExperimentServer extends WebSocketServer {
 	EEGLog log;
-	EEGLogging runningLogger;
+	EEGLoggingThread runningLogger;
   AttentionExperiment thisExperiment;
 	Timer timer;
 	String outputDir;
 	int participant;
 	int numPic = 1;
-	Queue<double[][]> dataQueue;
-	int trialsInQueue = 0;
+	List<Double>[] channelData;
 	String[] states = {"indoor", "outdoor", "male_neut", "female_neut"};
 	int TRIAL_TIME = 20*1000; //20 seconds.
-
-
-	class EEGLogging implements Runnable {
-
-		private Thread t;
-		private volatile boolean doAcquire = true;
-		private volatile boolean endAcquire = false;
-
-		public void run() {
-			try {
-				if(endAcquire){
-					System.out.println("Thread exiting.");
-					return;
-				}
-				while(!doAcquire)	wait();
-
-				System.out.println("Acquiring data continually");
-				double[][] thisData =log.getEEG();
-				if(thisData != null){
-					dataQueue.add(thisData);
-					if(thisData[0] != null)	trialsInQueue += thisData[0].length;
-				}
-			} catch (Exception e) {
-				System.out.println("Exception in EEGLogging thread: " + e);
-				e.printStackTrace(System.out);
-				return;
-
-			}
-
-		}
-
-		public void start ()
-		{
-			System.out.println("Beginning data acquisition in thread start");
-			if (t == null)
-			{
-				t = new Thread (this, "logger");
-				t.start ();
-			}
-		}
-
-		public void pause(){
-			this.doAcquire = false;
-		}
-
-		public void close(){
-			this.endAcquire = true;
-		}
-
-		public void resume(){
-			this.doAcquire = true;
-		}
-
-	}
+	int NUM_CHANNELS = 14;
 
 	public ExperimentServer( int port , String dirName, int participant) throws UnknownHostException {
 		super( new InetSocketAddress( port ) );
 		log = new EEGLog();
-		dataQueue = new LinkedList<double[][]>();
 		timer = new Timer();
+		channelData = new List<Double>[NUM_CHANNELS];
+		for(int i = 0; i < NUM_CHANNELS; i++){
+			channelData[i] = new List<Double>();
+		}
 	}
 
 	public ExperimentServer( InetSocketAddress address ) {
@@ -105,23 +56,28 @@ public class ExperimentServer extends WebSocketServer {
 		System.out.println( conn + " has left the room!" );
 	}
 
+	public void initExperiment() throws Exception{
+		try{
+			thisExperiment = new AttentionExperiment(outputDir, participant);
+			log.tryConnect();
+			System.out.println("Successfully connected to emotiv");
+			log.addUser();
+			System.out.println("Successfully added user");
+		}
+		catch(Exception e){
+			System.out.println("Connection failed");
+			this.sendToAll("connFail");
+			return;
+		}
+
+		this.sendToAll("connSuccess");
+	}
+
+
 	@Override
 	public void onMessage( WebSocket conn, String message ) {
 		if(message.equals("initExperiment")){
-			try{
-				thisExperiment = new AttentionExperiment(outputDir, participant);
-				log.tryConnect();
-				System.out.println("Successfully connected to emotiv");
-				log.addUser();
-				System.out.println("Successfully added user");
-			}
-			catch(Exception e){
-				System.out.println("Connection failed");
-				this.sendToAll("connFail");
-				return;
-			}
-
-			this.sendToAll("connSuccess");
+			initExperiment();
 		}
 		else if(message.equals("newEpoch")){
 			try{
@@ -136,15 +92,13 @@ public class ExperimentServer extends WebSocketServer {
 		else if(message.equals("newTrial")){
 
 			if(runningLogger == null){
-				runningLogger = new EEGLogging();
+				runningLogger = new EEGLoggingThread(channelData, log);
 				runningLogger.start();
 			}
 			else{
 				// pause logger, save data, reset queue and count...
 				runningLogger.pause();
-				thisExperiment.addTrials(dataQueue, trialsInQueue);
-				dataQueue.clear();
-				trialsInQueue = 0;
+				thisExperiment.addTrialAndClear(channelsData);
 				runningLogger.resume();
 				this.sendToAll("newTrial");
 			}
@@ -156,14 +110,9 @@ public class ExperimentServer extends WebSocketServer {
 			if(runningLogger != null)	runningLogger.close();
 		}
 		else{
-			System.out.println("Message did not messed known messages");
+			System.out.println("Message did not match known messages");
 		}
 		System.out.println( conn + ": " + message );
-	}
-
-	@Override
-	public void onFragment( WebSocket conn, Framedata fragment ) {
-		System.out.println( "received fragment: " + fragment );
 	}
 
 	public static void main( String[] args ) throws InterruptedException , IOException {

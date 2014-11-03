@@ -1,4 +1,4 @@
-<project>
+<project name="EmotivExperiment" default="compile">
 
     <target name="clean">
 				<delete dir="emotiv/build"/>
@@ -11,8 +11,16 @@
 			<fileset dir="src"/>
 		</path>
 
+		<path id="runpath">
+			<fileset dir="build"/>
+			<fileset dir="src"/>
+		</path>
+
 		<target name ="emotiv">
 			<javac srcdir="emotiv/src" destdir="emotiv/build" classpathref="classpath"/>
+			<jar destfile="src/eeglog.jar">
+				<fileset dir="emotiv/build" includes="**/*.class" />
+			</jar>
 		</target>
 
 		<target name ="eeglog" depends="emotiv">
@@ -24,24 +32,20 @@
 			</java>
 		</target>
 
-
     <target name="compile" depends="emotiv">
 				<mkdir dir="build"/>
-        <javac srcdir="src" destdir="build" classpathref="classpath"/>
+        <javac srcdir="src" destdir="build" classpathref="classpath" debug="on"/>
     </target>
 
 
-    <target name="jar">
-        <mkdir dir="build/jar"/>
-        <jar destfile="build/jar/HelloWorld.jar" basedir="build/classes">
-            <manifest>
-                <attribute name="Main-Class" value="oata.HelloWorld"/>
-            </manifest>
-        </jar>
-    </target>
 
-    <target name="run">
-        <java jar="build/jar/HelloWorld.jar" fork="true"/>
+    <target name="server">
+        <java fork="true" classname= "ExperimentServer">
+          <classpath>
+            <path location="build"/>
+            <path location="src/java_websocket.jar"/>
+          </classpath>
+        </java>
     </target>
 
 </project>
