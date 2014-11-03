@@ -25,7 +25,6 @@ public class ExperimentServer extends WebSocketServer {
 	String outputDir;
 	int participant;
 	int numPic = 1;
-	List<Double>[] channelData;
 	String[] states = {"indoor", "outdoor", "male_neut", "female_neut"};
 	int TRIAL_TIME = 20*1000; //20 seconds.
 	int NUM_CHANNELS = 14;
@@ -34,10 +33,6 @@ public class ExperimentServer extends WebSocketServer {
 		super( new InetSocketAddress( port ) );
 		log = new EEGLog();
 		timer = new Timer();
-		channelData = new List<Double>[NUM_CHANNELS];
-		for(int i = 0; i < NUM_CHANNELS; i++){
-			channelData[i] = new List<Double>();
-		}
 	}
 
 	public ExperimentServer( InetSocketAddress address ) {
@@ -56,10 +51,49 @@ public class ExperimentServer extends WebSocketServer {
 		System.out.println( conn + " has left the room!" );
 	}
 
-	public void initExperiment() throws Exception{
+
+	public void doTest(boolean remote){
+		if(thisExperiment != null){
+			System.out.println("Experiment already in progress! Cannot test");
+			return;
+		}
+
+		thisExperiment = new AttentionExperiment("./testdir", 1);
+		try{
+			if(remote)	log.tryRemoteConnect("127.0.0.1", (short)1726);
+			else	log.tryConnect();
+			System.out.println("Successfully connected");
+
+			log.addUser();
+			System.out.println("Successfully added user");
+		}
+		catch(Exception e){
+			System.out.println("Connection failed: " + e);
+			e.printStackTrace(System.out);
+			return;
+		}
+
+		System.out.println("Adding test epoch for faces");
+		thisExperiment.addEpoch("femaleFaces");
+		System.out.println("Running synchronous version of data acquisition
+		on 3 measurements per 3 trials, 1 epoch");
+		for(int i = 0; i < 3; i++){
+			for(int j = 0; j < 3; j++){
+
+			}
+		}
+
+		System.out.println("Adding trial");
+		thisExperiment.addTrialAndClear(channelData);
+		System.out.println("Done!");
+		return;
+	}
+
+	public void initExperiment(){
 		try{
 			thisExperiment = new AttentionExperiment(outputDir, participant);
-			log.tryConnect();
+			//log.tryConnect();
+			log.tryRemoteConnect("127.0.0.1", (short)1726);
 			System.out.println("Successfully connected to emotiv");
 			log.addUser();
 			System.out.println("Successfully added user");
@@ -67,6 +101,7 @@ public class ExperimentServer extends WebSocketServer {
 		catch(Exception e){
 			System.out.println("Connection failed");
 			this.sendToAll("connFail");
+			e.printStackTrace(System.out);
 			return;
 		}
 
@@ -98,7 +133,7 @@ public class ExperimentServer extends WebSocketServer {
 			else{
 				// pause logger, save data, reset queue and count...
 				runningLogger.pause();
-				thisExperiment.addTrialAndClear(channelsData);
+				thisExperiment.addTrialAndClear(channelData);
 				runningLogger.resume();
 				this.sendToAll("newTrial");
 			}
@@ -116,7 +151,7 @@ public class ExperimentServer extends WebSocketServer {
 	}
 
 	public static void main( String[] args ) throws InterruptedException , IOException {
-		if(args.length != 2){
+		if(args.length < 2){
 			System.out.println("Usage: <outputDir> <participantInt>");
 			return;
 		}

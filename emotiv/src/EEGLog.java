@@ -21,7 +21,7 @@ public class EEGLog {
 	private boolean DEBUG 				= false;
 
 
-	private static String[] channels = {"ED_COUNTER",
+	public static String[] channels = {"ED_COUNTER",
 	                                     "ED_INTERPOLATED",
 	                                     "ED_RAW_CQ",
 	                                     "ED_AF",
@@ -158,7 +158,6 @@ public class EEGLog {
 		for(int i = 0; i < TIMEOUT; i++){
 
 			state = Edk.INSTANCE.EE_EngineGetNextEvent(eEvent);
-			System.out.println("Got event code " + eEvent);
 			if(state == EdkErrorCode.EDK_OK.ToInt()){
 				int eventType = Edk.INSTANCE.EE_EmoEngineEventGetType(eEvent);
 				Edk.INSTANCE.EE_EmoEngineEventGetUserId(eEvent, userID);
