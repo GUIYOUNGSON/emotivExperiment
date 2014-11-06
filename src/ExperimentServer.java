@@ -21,7 +21,6 @@ public class ExperimentServer extends WebSocketServer {
 	EEGLog log;
 	EEGLoggingThread runningLogger;
   AttentionExperiment thisExperiment;
-	Timer timer;
 	String outputDir;
 	int participant;
 	int numPic = 1;
@@ -32,7 +31,7 @@ public class ExperimentServer extends WebSocketServer {
 	public ExperimentServer( int port , String dirName, int participant) throws UnknownHostException {
 		super( new InetSocketAddress( port ) );
 		log = new EEGLog();
-		timer = new Timer();
+		doTest(true);
 	}
 
 	public ExperimentServer( InetSocketAddress address ) {
@@ -57,11 +56,9 @@ public class ExperimentServer extends WebSocketServer {
 			System.out.println("Experiment already in progress! Cannot test");
 			return;
 		}
-
-		thisExperiment = new AttentionExperiment("./testdir", 1);
 		try{
-			if(remote)	log.tryRemoteConnect("127.0.0.1", (short)1726);
-			else	log.tryConnect();
+			thisExperiment = new AttentionExperiment("./testdir", 1);
+			log.tryConnect();
 			System.out.println("Successfully connected");
 
 			log.addUser();
@@ -75,25 +72,31 @@ public class ExperimentServer extends WebSocketServer {
 
 		System.out.println("Adding test epoch for faces");
 		thisExperiment.addEpoch("femaleFaces");
-		System.out.println("Running synchronous version of data acquisition
-		on 3 measurements per 3 trials, 1 epoch");
-		for(int i = 0; i < 3; i++){
-			for(int j = 0; j < 3; j++){
-
+		System.out.println("Running synchronous version of data acquisition" +
+		"on 3 measurements per 3 trials, 1 epoch");
+		try{
+			for(int i = 0; i < 3; i++){
+				thisExperiment.addTrial("face1", "place1", (float)0.5);
+				for(int j = 0; j < 3; j++){
+					thisExperiment.addData(log.getEEG(), System.currentTimeMillis());
+				}
+				thisExperiment.endTrial();
 			}
 		}
+		catch(Exception e){
+			System.out.println("An exception occured " + e);
+			e.printStackTrace(System.out);
+		}
+		System.out.println("Done!: ");
+		System.out.println(thisExperiment.dumpAllData());
 
-		System.out.println("Adding trial");
-		thisExperiment.addTrialAndClear(channelData);
-		System.out.println("Done!");
 		return;
 	}
 
 	public void initExperiment(){
 		try{
 			thisExperiment = new AttentionExperiment(outputDir, participant);
-			//log.tryConnect();
-			log.tryRemoteConnect("127.0.0.1", (short)1726);
+			log.tryConnect();
 			System.out.println("Successfully connected to emotiv");
 			log.addUser();
 			System.out.println("Successfully added user");
@@ -127,13 +130,13 @@ public class ExperimentServer extends WebSocketServer {
 		else if(message.equals("newTrial")){
 
 			if(runningLogger == null){
-				runningLogger = new EEGLoggingThread(channelData, log);
+				runningLogger = new EEGLoggingThread(thisExperiment, log);
 				runningLogger.start();
 			}
 			else{
 				// pause logger, save data, reset queue and count...
 				runningLogger.pause();
-				thisExperiment.addTrialAndClear(channelData);
+				//thisExperiment.addTrialAndClear(channelData);
 				runningLogger.resume();
 				this.sendToAll("newTrial");
 			}

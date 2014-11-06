@@ -44,7 +44,11 @@
           <classpath>
             <path location="build"/>
             <path location="src/java_websocket.jar"/>
+            <path location="emotiv/build"/>
+            <path location="emotiv/lib/jna.jar"/>
           </classpath>
+          <arg value="${arg0}"/>
+          <arg value="${arg1}"/>
         </java>
     </target>
 

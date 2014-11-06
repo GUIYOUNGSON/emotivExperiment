@@ -21,31 +21,11 @@ public class EEGLog {
 	private boolean DEBUG 				= false;
 
 
-	public static String[] channels = {"ED_COUNTER",
-	                                     "ED_INTERPOLATED",
-	                                     "ED_RAW_CQ",
-	                                     "ED_AF",
-	                                     "ED_F7",
-	                                    "ED_F3",
-	                                     "ED_FC5",
-	                                     "ED_T7",
-	                                     "ED_P7",
-	                                     "ED_O1",
-	                                     "ED_O2",
-	                                     "ED_P8",
-	                                     "ED_T8",
-	                                     "ED_FC6",
-	                                     "ED_F4",
-	                                     "ED_F8",
-	                                     "ED_AF4",
-	                                     "ED_GYROX",
-	                                     "ED_GYROY",
-	                                     "ED_TIMESTAMP",
-	                                     "ED_ES_TIMESTAMP",
-	                                     "ED_FUNC_ID",
-	                                     "ED_FUNC_VALUE",
-	                                     "ED_MARKER",
-	                                     "ED_SYNC_SIGNAL"};
+	public static String[] channels = {"COUNTER",
+	"AF3","F7", "F3", "FC5", "T7", "P7", "O1", "O2",
+	"P8", "T8", "FC6", "F4", "F8", "AF4", "GYROX",
+	"GYROY", "TIMESTAMP", "FUNC_ID", "FUNC_VALUE",
+	"MARKER", "SYNC_SIGNAL"};
 
 	private static int DATA_OFFSET = 3;
 	private static int NUM_CHANNELS = 14;
@@ -62,8 +42,10 @@ public class EEGLog {
 
 		EEGLog log = new EEGLog();
 		try{
-			if(args.length > 0 && args[0] == "--remote")	log.tryRemoteConnect(args[1], (short)Integer.parseInt(args[2]));
-			else	log.tryConnect();
+
+			//if(args.length > 0 && args[0] == "--remote")
+			//log.tryRemoteConnect();
+			log.tryConnect();
 			log.addUser();
 		}
 		catch (Exception e)
@@ -75,17 +57,14 @@ public class EEGLog {
 		try{
 			double[][] theData = log.getEEG();
 			int i = 0;
-			for(double[] dataArray : theData){
-				System.out.println("Field " + channels[i]);
-				for(double dataPoint : dataArray){
-					System.out.print(dataPoint);
-				}
-			}
 
-			//theData = sliceChannelData(theData);
-		//System.out.println("Number of columns (channels) is " + theData.length);
-		//System.out.println("Number of data lines is " + theData[0].length);
-			log.prettyPrint(theData, true);
+			for(double[] dataArray : theData){
+				System.out.println("Field " + channels[i++]);
+				for(double dataPoint : dataArray){
+					System.out.print(dataPoint + " ");
+				}
+				System.out.println();
+			}
 		}
 		catch(Exception e)
 		{
@@ -139,7 +118,9 @@ public class EEGLog {
 		return 1;
 	}
 
-	public int tryRemoteConnect(String ipAddr, short port) throws Exception{
+	public int tryRemoteConnect() throws Exception{
+		String ipAddr = "127.0.0.1";
+		short port = 1726;
 		System.out.println("Target IP of EmoComposer: [" + ipAddr + "] ");
 
 		if (Edk.INSTANCE.EE_EngineRemoteConnect(ipAddr, port, "Emotiv Systems-5") != EdkErrorCode.EDK_OK.ToInt()) {
@@ -147,15 +128,16 @@ public class EEGLog {
 			throw new Exception("Remote Emotiv Engine start up failed");
 		}
 		System.out.println("Connected to EmoComposer on [" + ipAddr + "]");
+		connected = true;
+		hData = Edk.INSTANCE.EE_DataCreate();
+		Edk.INSTANCE.EE_DataSetBufferSizeInSec(secs);
 		return 1;
 	}
 
 	public void addUser() throws Exception{
-
-		if(!connected)	throw new Exception("Not connected!");
-
+		if(!connected)	throw new Exception("Cannot add user until connected!");
 		// Poll until a user-added event occurs
-		for(int i = 0; i < TIMEOUT; i++){
+		while(true){
 
 			state = Edk.INSTANCE.EE_EngineGetNextEvent(eEvent);
 			if(state == EdkErrorCode.EDK_OK.ToInt()){
@@ -172,9 +154,8 @@ public class EEGLog {
 			else if(state != EdkErrorCode.EDK_NO_EVENT.ToInt()) {
 				throw new Exception("Internal error in Emotiv Engine: " + state);
 			}
-		}
 
-		throw new Exception("Timed out waiting to add user");
+		}
 	}
 
 
@@ -204,19 +185,19 @@ public void prettyPrint(double[][] data, boolean onlyData){
 }
 
 public double[][] getEEG() throws Exception{
-	if(!connected)		throw new Exception("Not connected!");
 
-	if(user == -1)		throw new Exception("No user added!");
-
-	for(int i = 0; i < TIMEOUT; i++){
+	int state = Edk.INSTANCE.EE_EngineGetNextEvent(eEvent);
+		int eventType = Edk.INSTANCE.EE_EmoEngineEventGetType(eEvent);
+		Edk.INSTANCE.EE_EmoEngineEventGetUserId(eEvent, userID);
+	while(true){
 		Edk.INSTANCE.EE_DataUpdateHandle(0, hData);
 		Edk.INSTANCE.EE_DataGetNumberOfSample(hData, nSamplesTaken);
 
 		if(nSamplesTaken != null && nSamplesTaken.getValue() != 0){
 
-			double[][] data = new double[channels.length][nSamplesTaken.getValue()];
+			double[][] data = new double[25][nSamplesTaken.getValue()];
 			int sampleIdx = nSamplesTaken.getValue();
-			for (int j = 0 ; j < channels.length ; j++) {
+			for (int j = 0 ; j < 25 ; j++) {
 				Edk.INSTANCE.EE_DataGet(hData, j, data[j], nSamplesTaken.getValue());
 			}
 
@@ -233,8 +214,6 @@ public double[][] getEEG() throws Exception{
 			return data;
 		}
 	}
-	// a timeout occured...
-	throw new Exception("Timed out on acquiring EEG data");
 
 }
 
@@ -243,7 +222,6 @@ public double[][] getEEG() throws Exception{
     public String readData() //double[] getSomeData()
     {
 
-		//double[] noData = {};
 		String noData = ":(";
 
     	switch (option) {
