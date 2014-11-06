@@ -9,7 +9,7 @@ public class AttentionExperiment{
   private Queue<Epoch> epochQueue;
   private int numEpochs;
   private Epoch thisEpoch;
-  private static int NUM_CHANNELS = 14;
+  static String[] channels = EEGLog.channels;
 
   public AttentionExperiment(String outputDir, int participantNum) throws IOException{
     this.participantNum = participantNum;
@@ -70,7 +70,7 @@ public class AttentionExperiment{
       trialQueue = new LinkedList<Trial>();
       channelData = new ArrayList<ArrayList<Double>>();
       // add an array list for each channel
-      for(int i = 0; i < NUM_CHANNELS; i++){
+      for(int i = 0; i < channels.length; i++){
         channelData.add(i, new ArrayList<Double>());
       }
       timeStamps = new ArrayList<Long>();
@@ -92,7 +92,7 @@ public class AttentionExperiment{
         timeStamps.add(timeStamp);
       }
 
-      for(int i = 0; i < NUM_CHANNELS; i++){
+      for(int i = 0; i < channels.length; i++){
         double[] thisChannelData = data[i];
         // put data into channelData storage struct
         ArrayList<Double> thisChannelStorage = channelData.get(i);
@@ -105,8 +105,8 @@ public class AttentionExperiment{
     // Flush all data from queue to trial, and clear channelsData.
     public void endTrial(){
       if(readyForNewTrial)  return;
-      Double[][] trialData = new Double[NUM_CHANNELS][];
-      for(int i = 0; i < NUM_CHANNELS; i++){
+      Double[][] trialData = new Double[channels.length][];
+      for(int i = 0; i < channels.length; i++){
         ArrayList<Double> thisChannelData = channelData.get(i);
         trialData[i] = thisChannelData.toArray(new Double[thisChannelData.size()]);
         thisChannelData.clear();
@@ -134,6 +134,9 @@ public class AttentionExperiment{
     String picture1;
     String picture2;
     float ratio;
+    float stimulusOnset;
+    float responseTime;
+    boolean correctResponse;
 
     public Trial(String picture1, String picture2, float ratio, int trialNum){
       this.trialNum = trialNum;
@@ -161,9 +164,9 @@ public class AttentionExperiment{
       for(int i = 0; i < numMeasurements; i++){
         for(int j = 0; j < data.length; j++){
           outString += data[j][i];
-          if(j != (channels.length - 1) )  outString += ",";
+          outString += ",";
         }
-        outString += "\n";
+        outString += (timeStamps[i] + "\n";
       }
       writer.print(outString);
       writer.close();

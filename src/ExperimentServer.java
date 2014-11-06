@@ -82,6 +82,14 @@ public class ExperimentServer extends WebSocketServer {
 				}
 				thisExperiment.endTrial();
 			}
+			thisExperiment.addEpoch("maleFaces");
+			for(int i = 0; i < 3; i++){
+				thisExperiment.addTrial("face1", "place1", (float)0.5);
+				for(int j = 0; j < 3; j++){
+					thisExperiment.addData(log.getEEG(), System.currentTimeMillis());
+				}
+				thisExperiment.endTrial();
+			}
 		}
 		catch(Exception e){
 			System.out.println("An exception occured " + e);

@@ -39,7 +39,7 @@ public class EEGLog {
 	public static void main(String[] args){
 		System.out.println(channels.length);
 		int numSamples = 1;//Integer.parseInt(args[0]);
-
+		double[][] theData = null;
 		EEGLog log = new EEGLog();
 		try{
 
@@ -55,48 +55,22 @@ public class EEGLog {
 		}
 
 		try{
-			double[][] theData = log.getEEG();
-			int i = 0;
-
-			for(double[] dataArray : theData){
-				System.out.println("Field " + channels[i++]);
-				for(double dataPoint : dataArray){
-					System.out.print(dataPoint + " ");
-				}
-				System.out.println();
-			}
+			theData = log.getEEG();
 		}
 		catch(Exception e)
 		{
 			System.out.println("An error " + e);
 		}
-		/*
-		PrintWriter writer;
-		try{
-			writer = new PrintWriter("/Users/Dale/Dropbox/code/EEGLog/scratch/test1", "UTF-8");
-			System.out.println("Opened file for writing");
-		}
-		catch(Exception e){
-			System.out.println("Error: " + e);
-			return;
-		}
 
-		for(int i = 0; i < numSamples; i++){
-			try{
-				String strs = log.getEEGAsString();
-				writer.println(strs);
-				System.out.println(strs);
+		int i = 0;
+
+		for(double[] dataArray : theData){
+			System.out.println("Field " + channels[i++]);
+			for(double dataPoint : dataArray){
+				System.out.print(dataPoint + " ");
 			}
-			catch(Exception e){
-				System.out.println("Could not write file, sorry: " + e);
-			}
-				writer.close();
-
+			System.out.println();
 		}
-		*/
-
-
-
 	}
 
 	public double[][] getChannelData() throws Exception{
@@ -195,9 +169,9 @@ public double[][] getEEG() throws Exception{
 
 		if(nSamplesTaken != null && nSamplesTaken.getValue() != 0){
 
-			double[][] data = new double[25][nSamplesTaken.getValue()];
+			double[][] data = new double[channels.length][nSamplesTaken.getValue()];
 			int sampleIdx = nSamplesTaken.getValue();
-			for (int j = 0 ; j < 25 ; j++) {
+			for (int j = 0 ; j < channels.length ; j++) {
 				Edk.INSTANCE.EE_DataGet(hData, j, data[j], nSamplesTaken.getValue());
 			}
 
@@ -319,110 +293,4 @@ public double[][] getEEG() throws Exception{
 		return noData;
 
     }
-
-    public static void main2(String[] args)
-    {
-
-    	Pointer eEvent				= Edk.INSTANCE.EE_EmoEngineEventCreate();
-    	Pointer eState				= Edk.INSTANCE.EE_EmoStateCreate();
-    	IntByReference userID 		= null;
-		IntByReference nSamplesTaken= null;
-    	short composerPort			= 1726;
-    	int option 					= 1;
-    	int state  					= 0;
-    	float secs 					= 1;
-    	boolean readytocollect 		= false;
-
-    	userID 			= new IntByReference(0);
-		nSamplesTaken	= new IntByReference(0);
-
-    	switch (option) {
-		case 1:
-		{
-			if (Edk.INSTANCE.EE_EngineConnect("Emotiv Systems-5") != EdkErrorCode.EDK_OK.ToInt()) {
-				System.out.println("Emotiv Engine start up failed.");
-				return;
-			}
-			break;
-		}
-		case 2:
-		{
-			System.out.println("Target IP of EmoComposer: [127.0.0.1] ");
-
-			if (Edk.INSTANCE.EE_EngineRemoteConnect("127.0.0.1", composerPort, "Emotiv Systems-5") != EdkErrorCode.EDK_OK.ToInt()) {
-				System.out.println("Cannot connect to EmoComposer on [127.0.0.1]");
-				return;
-			}
-			System.out.println("Connected to EmoComposer on [127.0.0.1]");
-			break;
-		}
-		default:
-			System.out.println("Invalid option...");
-			return;
-    	}
-
-		Pointer hData = Edk.INSTANCE.EE_DataCreate();
-		Edk.INSTANCE.EE_DataSetBufferSizeInSec(secs);
-		System.out.print("Buffer size in secs: ");
-		System.out.println(secs);
-
-    	System.out.println("Start receiving EEG Data!");
-		while (true)
-		{
-			state = Edk.INSTANCE.EE_EngineGetNextEvent(eEvent);
-
-			// New event needs to be handled
-			if (state == EdkErrorCode.EDK_OK.ToInt())
-			{
-				int eventType = Edk.INSTANCE.EE_EmoEngineEventGetType(eEvent);
-				Edk.INSTANCE.EE_EmoEngineEventGetUserId(eEvent, userID);
-
-				// Log the EmoState if it has been updated
-				if (eventType == Edk.EE_Event_t.EE_UserAdded.ToInt())
-				if (userID != null)
-					{
-						System.out.println("User added");
-						Edk.INSTANCE.EE_DataAcquisitionEnable(userID.getValue(),true);
-						readytocollect = true;
-					}
-			}
-			else if (state != EdkErrorCode.EDK_NO_EVENT.ToInt()) {
-				System.out.println("Internal error in Emotiv Engine!");
-				break;
-			}
-
-			if (readytocollect)
-			{
-				Edk.INSTANCE.EE_DataUpdateHandle(0, hData);
-
-				Edk.INSTANCE.EE_DataGetNumberOfSample(hData, nSamplesTaken);
-
-				if (nSamplesTaken != null)
-				{
-					if (nSamplesTaken.getValue() != 0) {
-
-						System.out.print("Updated: ");
-						System.out.println(nSamplesTaken.getValue());
-
-						double[] data = new double[nSamplesTaken.getValue()];
-						for (int sampleIdx=0 ; sampleIdx<1; ++ sampleIdx){ //sampleIdx<nSamplesTaken.getValue() ; ++ sampleIdx) {
-							for (int i = 0 ; i < channels.length ; i++) {
-
-								Edk.INSTANCE.EE_DataGet(hData, i, data, nSamplesTaken.getValue());
-								System.out.print(data[sampleIdx]);
-								System.out.print(",");
-							}
-							System.out.println();
-						}
-					}
-				}
-			}
-		}
-
-    	Edk.INSTANCE.EE_EngineDisconnect();
-    	Edk.INSTANCE.EE_EmoStateFree(eState);
-    	Edk.INSTANCE.EE_EmoEngineEventFree(eEvent);
-    	System.out.println("Disconnected!");
-    }
-
 }
