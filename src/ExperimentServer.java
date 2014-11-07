@@ -20,7 +20,7 @@ import java.util.*;
 public class ExperimentServer extends WebSocketServer {
 	EEGLog log;
 	EEGLoggingThread runningLogger;
-  AttentionExperiment thisExperiment;
+  EEGJournal thisJournal;
 	String outputDir;
 	int participant;
 	int numPic = 1;
@@ -52,12 +52,12 @@ public class ExperimentServer extends WebSocketServer {
 
 
 	public void doTest(boolean remote){
-		if(thisExperiment != null){
+		if(thisJournal != null){
 			System.out.println("Experiment already in progress! Cannot test");
 			return;
 		}
 		try{
-			thisExperiment = new AttentionExperiment("./testdir", 1);
+			thisJournal = new EEGJournal("./testdir", 1);
 			log.tryConnect();
 			System.out.println("Successfully connected");
 
@@ -71,24 +71,24 @@ public class ExperimentServer extends WebSocketServer {
 		}
 
 		System.out.println("Adding test epoch for faces");
-		thisExperiment.addEpoch("femaleFaces");
+		thisJournal.addEpoch("femaleFaces");
 		System.out.println("Running synchronous version of data acquisition" +
 		"on 3 measurements per 3 trials, 1 epoch");
 		try{
 			for(int i = 0; i < 3; i++){
-				thisExperiment.addTrial("face1", "place1", (float)0.5);
+				thisJournal.addTrial("face1", "place1", (float)0.5);
 				for(int j = 0; j < 3; j++){
-					thisExperiment.addData(log.getEEG(), System.currentTimeMillis());
+					thisJournal.addData(log.getEEG(), System.currentTimeMillis());
 				}
-				thisExperiment.endTrial();
+				thisJournal.endTrial();
 			}
-			thisExperiment.addEpoch("maleFaces");
+			thisJournal.addEpoch("maleFaces");
 			for(int i = 0; i < 3; i++){
-				thisExperiment.addTrial("face1", "place1", (float)0.5);
+				thisJournal.addTrial("face1", "place1", (float)0.5);
 				for(int j = 0; j < 3; j++){
-					thisExperiment.addData(log.getEEG(), System.currentTimeMillis());
+					thisJournal.addData(log.getEEG(), System.currentTimeMillis());
 				}
-				thisExperiment.endTrial();
+				thisJournal.endTrial();
 			}
 		}
 		catch(Exception e){
@@ -96,14 +96,14 @@ public class ExperimentServer extends WebSocketServer {
 			e.printStackTrace(System.out);
 		}
 		System.out.println("Done!: ");
-		System.out.println(thisExperiment.dumpAllData());
+		System.out.println(thisJournal.dumpAllData());
 
 		return;
 	}
 
 	public void initExperiment(){
 		try{
-			thisExperiment = new AttentionExperiment(outputDir, participant);
+			thisJournal = new EEGJournal(outputDir, participant);
 			log.tryConnect();
 			System.out.println("Successfully connected to emotiv");
 			log.addUser();
@@ -127,7 +127,7 @@ public class ExperimentServer extends WebSocketServer {
 		}
 		else if(message.equals("newEpoch")){
 			try{
-				thisExperiment.addEpoch("indoorClick");
+				thisJournal.addEpoch("indoorClick");
 			}
 			catch(Exception e){
 				System.out.println("Could not add epoch: " + e);
@@ -138,13 +138,13 @@ public class ExperimentServer extends WebSocketServer {
 		else if(message.equals("newTrial")){
 
 			if(runningLogger == null){
-				runningLogger = new EEGLoggingThread(thisExperiment, log);
+				runningLogger = new EEGLoggingThread(thisJournal, log);
 				runningLogger.start();
 			}
 			else{
 				// pause logger, save data, reset queue and count...
 				runningLogger.pause();
-				//thisExperiment.addTrialAndClear(channelData);
+				//thisJournal.addTrialAndClear(channelData);
 				runningLogger.resume();
 				this.sendToAll("newTrial");
 			}

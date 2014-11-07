@@ -3,14 +3,14 @@ import java.util.*;
 class EEGLoggingThread implements Runnable {
 
   private Thread t;
-  private AttentionExperiment experiment;
+  private EEGJournal journal;
   private EEGLog log;
   private volatile boolean doAcquire = true;
   private volatile boolean endAcquire = false;
   private int NUM_CHANNELS = 14;
 
-  public EEGLoggingThread(AttentionExperiment experiment, EEGLog log){
-    this.experiment = experiment;
+  public EEGLoggingThread(EEGJournal journal, EEGLog log){
+    this.journal = journal;
     this.log = log;
   }
 
@@ -28,7 +28,7 @@ class EEGLoggingThread implements Runnable {
       // If data was collected, add it to the channelData array.
       if(thisData != null){
         // should replace "3" with a timestamp
-        experiment.addData(thisData, 3);
+        journal.addData(thisData, 3);
       }
     } catch (Exception e) {
       System.out.println("Exception in EEGLogging thread: " + e);
