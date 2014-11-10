@@ -14,24 +14,21 @@ import org.java_websocket.server.WebSocketServer;
 import java.util.*;
 
 
-/**
-* A simple WebSocketServer implementation. Keeps track of a "chatroom".
-*/
 public class ExperimentServer extends WebSocketServer {
-	EEGLog log;
-	EEGLoggingThread runningLogger;
-  EEGJournal thisJournal;
-	String outputDir;
 	int participant;
-	int numPic = 1;
-	String[] states = {"indoor", "outdoor", "male_neut", "female_neut"};
-	int TRIAL_TIME = 20*1000; //20 seconds.
-	int NUM_CHANNELS = 14;
 
+	AttentionExperiment experiment;
 	public ExperimentServer( int port , String dirName, int participant) throws UnknownHostException {
-		super( new InetSocketAddress( port ) );
-		log = new EEGLog();
-		doTest(true);
+		try{
+			experiment = new AttentionExperiment(participant, outputDir, true);
+		}
+		catch(Exception e){
+			System.out.println("Could not begin a new experiment: " + e);
+			e.printStackTrace();
+			return;
+		}
+		this.participant = participant;
+		super( new InetSocketAddress( experiment.getWebsocketsPort() ) );
 	}
 
 	public ExperimentServer( InetSocketAddress address ) {
@@ -41,13 +38,12 @@ public class ExperimentServer extends WebSocketServer {
 	@Override
 	public void onOpen( WebSocket conn, ClientHandshake handshake ) {
 		this.sendToAll( "new connection: " + handshake.getResourceDescriptor() );
-		System.out.println( conn.getRemoteSocketAddress().getAddress().getHostAddress() + " entered the room!" );
+		System.out.println( conn.getRemoteSocketAddress().getAddress().getHostAddress() + " connected!" );
 	}
 
 	@Override
 	public void onClose( WebSocket conn, int code, String reason, boolean remote ) {
-		this.sendToAll( conn + " has left the room!" );
-		System.out.println( conn + " has left the room!" );
+		this.sendToAll( conn + " disconnected!" );
 	}
 
 
@@ -99,24 +95,6 @@ public class ExperimentServer extends WebSocketServer {
 		System.out.println(thisJournal.dumpAllData());
 
 		return;
-	}
-
-	public void initExperiment(){
-		try{
-			thisJournal = new EEGJournal(outputDir, participant);
-			log.tryConnect();
-			System.out.println("Successfully connected to emotiv");
-			log.addUser();
-			System.out.println("Successfully added user");
-		}
-		catch(Exception e){
-			System.out.println("Connection failed");
-			this.sendToAll("connFail");
-			e.printStackTrace(System.out);
-			return;
-		}
-
-		this.sendToAll("connSuccess");
 	}
 
 

@@ -9,6 +9,8 @@ public class EEGJournal{
   private Queue<Epoch> epochQueue;
   private int numEpochs;
   private Epoch thisEpoch;
+  private ArrayList<String> userMetaData;
+
   static String[] channels = EEGLog.channels;
 
   public EEGJournal(String outputDir, int participantNum) throws IOException{
@@ -48,6 +50,10 @@ public class EEGJournal{
 
   public void addData(double[][] data, long timeStamp){
     thisEpoch.addData(data, timeStamp);
+  }
+
+  public void addMetaData(String metadata){
+    userMetaData.add(metadata);
   }
 
 
@@ -169,8 +175,6 @@ public class EEGJournal{
         }
         outString += (timeStamps[i] + "\n");
       }
-      writer.print(outString);
-      writer.close();
       return outString;
     }
 

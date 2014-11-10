@@ -72,7 +72,7 @@ function updateOpacity(opacity2){
 function startTrial(category1, image1, category2, image2, opacity2){
   participantDidRespond = false;
   sentResponse = false;
-  startTrialTime = WHATEVER THE FUNCTION THAT GETS THE CURRENT TIME
+  startTrialTime = new Date().getTime();
   // turn on interrupts here
   handleKeypress = handleKeypressHelper;
   showPics(category1, image1, category2, image2, opacity2);
@@ -83,7 +83,7 @@ function recordResponse(){
   handleKeypress = null;
   if(!$.connection || participantDidRespond)  return;
   participantDidRespond = true;
-  responseTime =  WHATEVER THE FUNCTION THAT GETS THE CURRENT TIME - startTrialTime;
+  responseTime = new Date().getTime();
 }
 
 function sendResponse(){
