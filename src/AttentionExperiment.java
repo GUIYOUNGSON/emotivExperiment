@@ -13,7 +13,6 @@ public class AttentionExperiment implements Experiment{
   static String OUTDOOR_PLACES ="./frontend/outdoor/";
   static String INDOOR_PLACES ="./frontend/indoor/";
 
-
   boolean feedback;
   Timer timer;
   EEGJournal journal;
@@ -72,8 +71,8 @@ public class AttentionExperiment implements Experiment{
   };
 
   /* Set up any scheduled processes */
-  public void startExperiment(){
-    // do nothing
+  public void startExperiment(WebSocket conn){
+
     return;
   };
 
@@ -171,4 +170,98 @@ public class AttentionExperiment implements Experiment{
     return epochImages;
 
   }
+
+  public void sendMessage(String mess){
+    conn.send(mess);
+  }
+
+  private class dfa(){
+    private int epochNum;
+    private int trialNum;
+    private boolean inInstructs;
+
+    public dfa(){
+      epochNum = -1;
+      // initially set this this way so that scheduleNext
+      // schedules us to a new epoch
+      trialNum = TRIALS_PER_EPOCH;
+      inInstructs = true;
+      scheduleNext();
+    }
+
+    public String nextEpoch(){
+      String epochType;
+      if(epochNum%2)  epochType = "faces,";
+      else epochType = "places";
+
+      if(epochNum >= TRAINING_EPOCHS){
+        epochType += "feedback";
+      }
+      return epochType;
+    }
+
+    public String instruction(){
+      String instruct = "Click when the ";
+      if(epochNum%2){
+        instruct += "face you see is ";
+        instruct += (Outer.epochArray[0]) ? "female" : "male"
+      }
+      else{
+        instruct += "place you see is ";
+        instruct += (Outer.epochArray[0]) ? "indoors" : "outdoors"
+      }
+    }
+
+    private void scheduleNext(){
+
+      if(inInstructs){
+        inInstructs = false;
+        // schedule new epoch
+      }
+      else{
+        logger.pause();
+        journal.endTrial();
+        if(trialNum == TRIALS_PER_EPOCH){
+          // schedule a new epoch
+          epochNum++;
+          journal.addEpoch(nextEpoch());
+          inInstructs = true;
+          Outer.sendMessage("I:" + instruction());
+        }
+        else{
+          // run next trial
+          trialNum++;
+          // get the right picture, ratio
+          journal.addTrial()
+        }
+      }
+      else{
+
+        logger.pause();
+        // record response times
+        epochNum++;
+        trialNum = 0;
+        inInstructs = true;
+        // schedule instructions
+      }
+    }
+
+    private class SendMessageLater extends TimerTask{
+
+      String message;
+
+      public SendMessageLater(String message){
+        this.message = message;
+      }
+
+      public void run(){
+        Outer.Outer.this.sendMessage(mess);
+        scheduleNext();
+      }
+
+    }
+  }
+
+
+
 }

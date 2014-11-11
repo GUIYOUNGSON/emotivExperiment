@@ -16,7 +16,7 @@ public interface Experiment{
   public String initMessage();
 
   /* Set up any scheduled processes */
-  public void startExperiment();
+  public void startExperiment(WebSocket conn);
 }
 
 /* Browser must implement a websockets interface */

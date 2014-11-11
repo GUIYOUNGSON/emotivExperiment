@@ -110,6 +110,7 @@ public class EEGJournal{
 
     // Flush all data from queue to trial, and clear channelsData.
     public void endTrial(){
+      if(thisTrial == null)  return;
       if(readyForNewTrial)  return;
       Double[][] trialData = new Double[channels.length][];
       for(int i = 0; i < channels.length; i++){
