@@ -3,6 +3,7 @@ import java.io.*;
 
 public class EEGJournal{
 
+  private static boolean DEBUG = true;
   private int participantNum;
   private String fileName = "testdata/testfile.csv";
   private PrintWriter writer;
@@ -40,12 +41,15 @@ public class EEGJournal{
     epochQueue.add(thisEpoch);
   }
 
-  public void addTrial(String picture1, String picture2, float ratio){
-    thisEpoch.addTrial(picture1, picture2, ratio);
+  // We only keep track of the ratio with which the pictures were displayed,
+  // since which images were displayed is determined in advance.
+  public void addTrial(float ratio){
+    thisEpoch.addTrial(ratio);
   }
 
-  public void endTrial(){
-    thisEpoch.endTrial();
+  public void endTrial(long timeImageOnset, long timeOfResponse, long resposeTime){
+    if(DEBUG) System.out.println(thisTrial);
+    thisEpoch.endTrial(timeImageOnset, timeOfResponse, responseTime);
   }
 
   public void addData(double[][] data, long timeStamp){
@@ -64,14 +68,12 @@ public class EEGJournal{
     int epochNum;
     Trial thisTrial;
     int trialNum;
-    boolean readyForNewTrial;
     ArrayList<ArrayList<Double>> channelData;
     ArrayList<Long> timeStamps;
 
     public Epoch(String epochType, int epochNum){
       this.epochType = epochType;
       this.epochNum = this.epochNum;
-      this.readyForNewTrial = true;
       this.trialNum = 0;
       trialQueue = new LinkedList<Trial>();
       channelData = new ArrayList<ArrayList<Double>>();
@@ -82,10 +84,8 @@ public class EEGJournal{
       timeStamps = new ArrayList<Long>();
     }
 
-    public void addTrial(String picture1, String picture2, float ratio){
-      if(!readyForNewTrial) endTrial();
-      readyForNewTrial = false;
-      thisTrial = new Trial(picture1, picture2, ratio, trialNum++);
+    public void addTrial(float ratio){
+      thisTrial = new Trial(ratio, trialNum++);
       trialQueue.add(thisTrial);
     }
 
@@ -109,9 +109,8 @@ public class EEGJournal{
     }
 
     // Flush all data from queue to trial, and clear channelsData.
-    public void endTrial(){
+    public void endTrial(long timeImageOnset, long timeOfResponse, long resposeTime){
       if(thisTrial == null)  return;
-      if(readyForNewTrial)  return;
       Double[][] trialData = new Double[channels.length][];
       for(int i = 0; i < channels.length; i++){
         ArrayList<Double> thisChannelData = channelData.get(i);
@@ -120,9 +119,11 @@ public class EEGJournal{
       }
 
       thisTrial.setData(trialData, timeStamps.toArray(new Long[timeStamps.size()]));
+      thisTrial.stimulusOnset = timeImageOnset;
+      thisTrial.timeOfResponse = timeOfResponse;
+      thisTrial.responseTime = responseTime;
       timeStamps.clear();
 
-      readyForNewTrial = true;
     }
 
     public void flushEpochToFile(){
@@ -138,18 +139,14 @@ public class EEGJournal{
     Double[][] data;
     Long[] timeStamps;
     int trialNum;
-    String picture1;
-    String picture2;
     float ratio;
-    float stimulusOnset;
-    float timeOfResponse;
-    float responseTime;
+    long stimulusOnset;
+    long timeOfResponse;
+    long responseTime;
     boolean correctResponse;
 
-    public Trial(String picture1, String picture2, float ratio, int trialNum){
+    public Trial(float ratio, int trialNum){
       this.trialNum = trialNum;
-      this.picture1 = picture1;
-      this.picture2 = picture2;
       this.ratio = ratio;
     }
 
@@ -161,7 +158,9 @@ public class EEGJournal{
 
     public String toString(){
       String[] channels = EEGLog.channels;
-      String outString = null;
+      String outString = "Stimulus Onset: " + stimulusOnset + ",Time of Response: " + ((timeOfResponse != null) ? timeOfResponse : "none") +
+      ",Response Time: " + ((responseTime != null) ? responseTime : "none") + "\n";
+
       for(String channel : channels){
         outString += channel + ", ";
       }

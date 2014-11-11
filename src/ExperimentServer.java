@@ -15,19 +15,9 @@ import java.util.*;
 
 
 public class ExperimentServer extends WebSocketServer {
-	int participant;
 
 	AttentionExperiment experiment;
-	public ExperimentServer(String dirName, int participant) throws UnknownHostException {
-		try{
-			experiment = new AttentionExperiment(participant, outputDir, true);
-		}
-		catch(Exception e){
-			System.out.println("Could not begin a new experiment: " + e);
-			e.printStackTrace();
-			return;
-		}
-		this.participant = participant;
+	public ExperimentServer(int port) throws UnknownHostException {
 		super( new InetSocketAddress( experiment.getWebsocketsPort() ) );
 	}
 
@@ -37,8 +27,7 @@ public class ExperimentServer extends WebSocketServer {
 
 	@Override
 	public void onOpen( WebSocket conn, ClientHandshake handshake ) {
-		this.sendToAll( "new connection: " + handshake.getResourceDescriptor() );
-		System.out.println( conn.getRemoteSocketAddress().getAddress().getHostAddress() + " connected!" );
+
 	}
 
 	@Override

@@ -5,7 +5,7 @@ class EEGLoggingThread implements Runnable {
   private Thread t;
   private EEGJournal journal;
   private EEGLog log;
-  private volatile boolean doAcquire = true;
+  private volatile boolean doAcquire = false;
   private volatile boolean endAcquire = false;
   private int NUM_CHANNELS = 14;
 
@@ -58,7 +58,7 @@ class EEGLoggingThread implements Runnable {
   }
 
   public void resume(){
-    this.doAcquire = true;
+    ifthis.doAcquire = true;
   }
 
 }

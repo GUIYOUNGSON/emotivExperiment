@@ -12,11 +12,8 @@ public interface Experiment{
   /* Get the port of the browser websocket */
   public int getWebsocketsPort();
 
-  /* Initialization method to be sent to browser */
-  public String initMessage();
-
   /* Set up any scheduled processes */
-  public void startExperiment(WebSocket conn);
+  public void startExperiment();
 }
 
 /* Browser must implement a websockets interface */

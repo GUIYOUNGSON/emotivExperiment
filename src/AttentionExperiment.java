@@ -1,6 +1,6 @@
 import java.util.*;
 
-public class AttentionExperiment implements Experiment{
+public class AttentionExperiment implements Experiment, extends WebSocketServer{
 
   // see what megan does here...
   static int NUM_EPOCHS = 10;
@@ -8,6 +8,8 @@ public class AttentionExperiment implements Experiment{
   static int FEEDBACK_EPOCHS = 3;
   static int TRIALS_PER_EPOCH = 20;
   static int NUM_IMAGES_PER_CATEGORY = 70;
+  static int WEB_SOCKETS_PORT = 8887;
+  statc int RESPONES_TIME = 100;
   static String MALE_FACES ="./frontend/male_neut/";
   static String FEMALE_FACES ="./frontend/female_neut/";
   static String OUTDOOR_PLACES ="./frontend/outdoor/";
@@ -22,9 +24,18 @@ public class AttentionExperiment implements Experiment{
   int participantNum;
   boolean[] epochArray;
   String[][] epochImageFiles;
+  ExperimentServer thisServer;
 
+  int currentEpoch = 0;
+  int currenTrial = 0;
+  long timeOfResopnse;
+  long responseTime;
+  long stimulusOnset;
+  double thisRatio;
 
-  public AttentionExperiment(int participantNum, String outputDir, boolean realFeedback) throws Exception{
+  Dfa dfa;
+
+  public AttentionExperiment throws UnknownHostException(int participantNum, String outputDir, boolean realFeedback) throws Exception{
     this.participantNum = participantNum;
     this.feedback = realFeedback;
     journal = new EEGJournal(outputDir, participantNum);
@@ -39,41 +50,65 @@ public class AttentionExperiment implements Experiment{
     epochImagesFiles = getEpochImages();
     // save the header
     journal.addMetaData(getExperimentHeader());
+
+    dfa = new Dfa();
+  }
+
+  public static void main(String[] args){
+    if(args.length != 3){
+      System.out.println("Usage: <ParticipantNum> <outputDir> <realFeedback (1,0)>");
+      return;
+    }
+
+    int participantNum = Integer.parseInt(args[0]);
+    String outputDir = args[1];
+    boolean feedback = (Integer.parseInt(args[2]) == 1) ? true : false;
+
+    AttentionExperiment thisExperiment =
+      new AttentionExperiment(participantNum, outputDir, feedback);
+
+    thisExperiment.startExperiment();
   }
 
 
-  /* Get the port of the browser websocket */
-  public int getWebsocketsPort(){
-    return 8887;
-  }
 
-  /* When message is recieved from the websocket... */
-  public void onMessage(String message){
+
+@Override
+public void onMessage( WebSocket conn, String message ) {
+    // when we get a message
 
     // Got a response (it's elapsed time)
     if(message.charAt(0) == 'R'){
       long thisTime = System.currentTimeMillis();
-
       long elapsedTime = Long.parseLong(message.substring(2));
-
     }
+    else if(message.charAt(0) == 'C'){
+      // doNext from user input
+      dfa.doNext(false);
+    }
+    else if(message.charAt(0) == 'Q' && message.charAt(1) == 'q'){
+      System.out.println("Quitting ... goodbye!");
+      if(logger != null)  logger.close();
+      return;
+    }
+}
 
-    if(message.equals("init")){
-      // Do initialization routine
+
+public void sendToAll( String text ) {
+  Collection<WebSocket> con = connections();
+  synchronized ( con ) {
+    for( WebSocket c : con ) {
+      c.send( text );
     }
   }
+}
 
-  /* Initialization method to be sent to browser.  We don't need this because
-  the client is going to do the initializing. */
-  public String initMessage(){
-    //do nothing
-    return null;
-  };
+
 
   /* Set up any scheduled processes */
-  public void startExperiment(WebSocket conn){
-
-    return;
+  public void startExperiment(){
+    // shows the first instruction.
+    dfa.start();
   };
 
 
@@ -89,7 +124,7 @@ public class AttentionExperiment implements Experiment{
         headerString+= "\n\n";
       }
 
-      return headerString
+      return headerString;
   }
 
   /* Returns a vector, [clickFemale, clickIndoor],
@@ -123,6 +158,7 @@ public class AttentionExperiment implements Experiment{
     return list;
   }
 
+  /* Returns an array filenames specifying images to be shown in each trial*/
   private String[][] getEpochImages(){
     String[][] epochImages = new String[NUM_EPOCHS];
     // randomly choose faces and places
@@ -171,25 +207,76 @@ public class AttentionExperiment implements Experiment{
 
   }
 
-  public void sendMessage(String mess){
-    conn.send(mess);
-  }
 
-  private class dfa(){
+  private class Dfa(){
     private int epochNum;
-    private int trialNum;
+    private int trialNum = TRIALS_PER_EPOCH;
     private boolean inInstructs;
+    private boolean inTraining;
 
-    public dfa(){
-      epochNum = -1;
-      // initially set this this way so that scheduleNext
-      // schedules us to a new epoch
-      trialNum = TRIALS_PER_EPOCH;
+    /* Begin the experiment by showing the first instruction */
+    public void start(){
+      epochNum = 0;
+      trialNum = 0;
+      sendToAll("I," + instructions(epochNum));
+      journal.addEpoch(epochType(epochNum));
       inInstructs = true;
-      scheduleNext();
+      thisRatio = 0.5;
+      // initializes logger, does not start acquisition
+      logger.start();
     }
 
-    public String nextEpoch(){
+    public void doNext(boolean fromTimer){
+      // can only get here not from timer if we're in instructs
+      if(!fromTimer && !inInstructs) return;
+      // pause eeg logger while we alter its metadata
+      logger.pause();
+      if(!inInstructs){
+        journal.endTrial(stimOnset, timeOfResponse, responseTime);
+        trialNum++;
+        if(trialNum < TRIALS_PER_EPOCH){
+          journal.addTrial(thisRatio);
+          timeOfResponse = null;
+          responseTime = null;
+          logger.resume();
+          // Use 50% ratio
+          sendToAll(getTrialImagesCommand(epochNum, trialNum, thisRatio));
+          stimOnset = System.currentTimeMillis();
+          timer.schedule(doNextLater, RESPONSE_TIME);
+        }
+        // Otherwise, go to next epoch
+        else{
+          sendToAll(getInstructionCommand(epochNum));
+          inInstructs = true;
+          journal.endTrial(stimOnset, timeOfResponse, responseTime);
+          // Show the next instruction
+          epochNum++;
+          journal.addEpoch(epochType(epochNum));
+          trialNum = 0;
+        }
+      }
+      // advance to start of trial
+      else{
+        inInstructs = false;
+        journal.addTrial(thisRatio);
+        timeOfResponse = null;
+        resposneTime = null;
+        stimOnset = System.currentTimeMillis();
+        logger.resume();
+        sendToAll(getTrialImagesCommand(epochNum, trialNum, thisRatio));
+        timer.schedule(doNextLater, RESPONSE_TIME);
+      }
+    }
+
+    private class doNextLater extends TimerTask{
+
+      public void run(){
+        doNext(true);
+      }
+
+    }
+
+    public String epochType(int epochNum){
       String epochType;
       if(epochNum%2)  epochType = "faces,";
       else epochType = "places";
@@ -200,8 +287,8 @@ public class AttentionExperiment implements Experiment{
       return epochType;
     }
 
-    public String instruction(){
-      String instruct = "Click when the ";
+    public String getInstructionCommand(int epochNum){
+      String instruct = "I,Click when the ";
       if(epochNum%2){
         instruct += "face you see is ";
         instruct += (Outer.epochArray[0]) ? "female" : "male"
@@ -212,54 +299,11 @@ public class AttentionExperiment implements Experiment{
       }
     }
 
-    private void scheduleNext(){
-
-      if(inInstructs){
-        inInstructs = false;
-        // schedule new epoch
-      }
-      else{
-        logger.pause();
-        journal.endTrial();
-        if(trialNum == TRIALS_PER_EPOCH){
-          // schedule a new epoch
-          epochNum++;
-          journal.addEpoch(nextEpoch());
-          inInstructs = true;
-          Outer.sendMessage("I:" + instruction());
-        }
-        else{
-          // run next trial
-          trialNum++;
-          // get the right picture, ratio
-          journal.addTrial()
-        }
-      }
-      else{
-
-        logger.pause();
-        // record response times
-        epochNum++;
-        trialNum = 0;
-        inInstructs = true;
-        // schedule instructions
-      }
+    public String getTrialImagesCommand(int epochNum, int trialNum, double ratio){
+      return "S," + epochImageFiles[epochNum][trialNum*2] + "," + epochImageFiles[epochNum][trialNum*2+1] +
+      "," + ratio;
     }
 
-    private class SendMessageLater extends TimerTask{
-
-      String message;
-
-      public SendMessageLater(String message){
-        this.message = message;
-      }
-
-      public void run(){
-        Outer.Outer.this.sendMessage(mess);
-        scheduleNext();
-      }
-
-    }
   }
 
 
