@@ -15,7 +15,7 @@ class EEGLoggingThread implements Runnable {
   ArrayList<ArrayList<Double>> data;
   ArrayList<Long> timestamps;
   DataOutputStream outToServer;
-
+  private PrintWriter writer;
 
   public EEGLoggingThread(EEGLog log) throws Exception{
     this.log = log;
@@ -28,6 +28,20 @@ class EEGLoggingThread implements Runnable {
     outToServer = new DataOutputStream(clientSocket.getOutputStream());
   }
 
+  public EEGLoggingThread(EEGLog log, String fileName) throws Exception{
+    this.log = log;
+    data = new ArrayList<ArrayList<Double>> ();
+    for(int i = 0; i < NUM_CHANNELS; i++){
+      data.add(i, new ArrayList<Double>());
+    }
+    timestamps = new ArrayList<Long>();
+    Socket clientSocket = new Socket("localhost", PUBLISH_PORT);
+    outToServer = new DataOutputStream(clientSocket.getOutputStream());
+    writer = new PrintWriter(fileName);
+  }
+
+
+
   public void run() {
     while(true){
       try {
@@ -37,7 +51,6 @@ class EEGLoggingThread implements Runnable {
         }
         while(!doAcquire)	wait();
 
-        System.out.println("Acquiring data continually");
         double[][] thisData = log.getEEG();
         long timestamp = System.currentTimeMillis();
         String outString = "";
@@ -68,12 +81,20 @@ class EEGLoggingThread implements Runnable {
     for(int datum = 0; datum < data[0].length; datum++){
       String outString = "";
       for(int channel = 0; channel < data.length; channel++){
+        try{
+          outToServer.writeDouble(data[channel][datum]);
+        }
+        catch(Exception e){
+          System.out.println("Couldn't send data to server: " + e);
+        }
+
         outString += data[channel][datum] + ",";
       }
       outString = outString.substring(0, (outString.length() - 1)) + '\n';
       try{
-        System.out.println(outString);
-        outToServer.writeBytes(outString);//(outString);
+        if(writer != null){
+            writer.println(outString);
+        }
       }
       catch(Exception e){
         System.out.println("Exception with writing to server: " + e);
@@ -110,7 +131,8 @@ class EEGLoggingThread implements Runnable {
       EEGLog log = new EEGLog();
       log.tryConnect();
       log.addUser();
-      thisLog = new EEGLoggingThread(log);
+      thisLog = new EEGLoggingThread(log,
+        "/Users/Dale/Dropbox/code/neuromancer/testdata/eegdata.csv");
     }
     catch(Exception e){
       System.out.println(e);

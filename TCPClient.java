@@ -14,15 +14,21 @@ class TCPClient
   DataOutputStream outToServer = new DataOutputStream(clientSocket.getOutputStream());
   BufferedReader inFromServer = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
   for(int j = 0; j < 10; j++){
-    sentence = inFromUser.readLine();
-    String outString;
+    String outString = "";
     for(int i = 0; i < 10; i++){
       outString += Math.random()*10 + ",";
     }
-    outString = outString.subString(0,outString.length-1) + '\n';
-    outToServer.writeBytes(outString);
-    modifiedSentence = inFromServer.readLine();
-    System.out.println("FROM SERVER: " + modifiedSentence);
+    while(true){
+      //outString = outString.subString(0,outString.length-1) + '\n';
+      outToServer.writeDouble(10.001);
+      if(inFromServer.ready()){
+        System.out.println("server has a message ");
+        modifiedSentence = inFromServer.readLine();
+        System.out.println("FROM SERVER: " + modifiedSentence);
+      }else{
+        System.out.println("server not ready");
+      }
+    }
   }
   clientSocket.close();
  }
