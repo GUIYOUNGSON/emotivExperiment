@@ -48,7 +48,6 @@ class EEGLoggingThread implements Runnable {
       t.start();
     }
   }
-
   public void pause(){
     this.doAcquire = false;
   }
