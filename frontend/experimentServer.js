@@ -15,18 +15,24 @@ var DEBUG = true;
 var date = new Date();
 var startTrialTime;
 var responseTime;
-var didRespond;
-var sentResponse;
+var inInstruct = true;
 
-/* This function is set when we want to record keypresses.
-If we don't (for example, when the participant has already
-responded), it's null */
 
-function handleKeypress(key);
-
-function handleKeypressHelper(key){
-  recordResponse();
-  sendResponse();
+function handleKeypress(key){
+  if(key == 'q'){
+    connection.send("Qq");
+    showText("Quit!");
+    return;
+  }
+  if(!inInstruct){
+    responseTime = new Date().getTime();
+    responseTime = responseTime = startTrialTime;
+    connection.send("R," + responseTime);
+  }
+  // advance to next key
+  else{
+    connection.send("N");
+  }
 }
 
 /* Show 'images/category1/image1' and 'images/category2/image2' with
@@ -43,6 +49,7 @@ function showPics(category1, image1, category2, image2, opacity2) {
 
 /* Hide image, display instructions */
 function showText(text){
+  inInstruct = true;
   $("#image-holder").css('visibility', 'hidden');
   $("#instructs").text(text);
 }
@@ -69,45 +76,15 @@ function updateOpacity(opacity2){
   stimImage2.attr("opacity", opacity2);
 }
 
-function startTrial(category1, image1, category2, image2, opacity2){
-  participantDidRespond = false;
-  sentResponse = false;
+function startTrial(image1, image2, opacity2){
+
   startTrialTime = new Date().getTime();
-  // turn on interrupts here
-  handleKeypress = handleKeypressHelper;
+  inInstruct = false;
   showPics(category1, image1, category2, image2, opacity2);
 }
 
-function recordResponse(){
-  // turn off interrupts here
-  handleKeypress = null;
-  if(!$.connection || participantDidRespond)  return;
-  participantDidRespond = true;
-  responseTime = new Date().getTime();
-}
-
-function sendResponse(){
-  if(!$.connection) return;
-  sentReponse = true;
-  if(participantDidRespond){
-    // send response time
-    $.connection.write("R:" + responseTime);
-  }
-  else{
-    $.connection.write("NR");
-  }
-}
 
 
-function startTrial()
-
-var instructions = {
-    "showText" : function(args){  showText(args[1]);  },
-    "startTrial", function
-    "endTrial",
-    "updateOpacity" : function(args){ updateOpacity(args[1])  },
-    "showBlank" : showBlank
-};
 
 $(function () {
   // if user is running mozilla then use it's built-in WebSocket
@@ -129,13 +106,15 @@ $(function () {
 
   connection.onmessage = function (message) {
     var args = message.data.split(",");
-    var command = args[0];
-    if(DEBUG)   console.log(command);
-    if(!instructions[command]){
-      showText("Got unknown command from backend server");
-      return;
+    // Show an instruction
+    if(args[0] == 'I'){
+      showText(args[1]);
+    }
+    else if(args[0] == 'S'){
+      startTrial(args[1], args[2], args[3]);
     }
 
-    instructions[command](args);
+    console.log("Got command " + args);
+
   };
 });

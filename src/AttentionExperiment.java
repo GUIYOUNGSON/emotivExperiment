@@ -1,6 +1,18 @@
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.InetSocketAddress;
+import java.net.UnknownHostException;
+import java.util.Collection;
+
+import org.java_websocket.WebSocket;
+import org.java_websocket.WebSocketImpl;
+import org.java_websocket.framing.Framedata;
+import org.java_websocket.handshake.ClientHandshake;
+import org.java_websocket.server.WebSocketServer;
 import java.util.*;
 
-public class AttentionExperiment implements Experiment, extends WebSocketServer{
+public class AttentionExperiment extends WebSocketServer{
 
   // see what megan does here...
   static int NUM_EPOCHS = 10;
@@ -9,7 +21,7 @@ public class AttentionExperiment implements Experiment, extends WebSocketServer{
   static int TRIALS_PER_EPOCH = 20;
   static int NUM_IMAGES_PER_CATEGORY = 70;
   static int WEB_SOCKETS_PORT = 8887;
-  statc int RESPONES_TIME = 100;
+  static int RESPONES_TIME = 100;
   static String MALE_FACES ="./frontend/male_neut/";
   static String FEMALE_FACES ="./frontend/female_neut/";
   static String OUTDOOR_PLACES ="./frontend/outdoor/";
@@ -28,14 +40,14 @@ public class AttentionExperiment implements Experiment, extends WebSocketServer{
 
   int currentEpoch = 0;
   int currenTrial = 0;
-  long timeOfResopnse;
+  long timeOfResponse;
   long responseTime;
-  long stimulusOnset;
+  long stimOnset;
   double thisRatio;
 
   Dfa dfa;
 
-  public AttentionExperiment throws UnknownHostException(int participantNum, String outputDir, boolean realFeedback) throws Exception{
+  public AttentionExperiment (int participantNum, String outputDir, boolean realFeedback) throws Exception{
     this.participantNum = participantNum;
     this.feedback = realFeedback;
     journal = new EEGJournal(outputDir, participantNum);
@@ -47,7 +59,7 @@ public class AttentionExperiment implements Experiment, extends WebSocketServer{
     logger = new EEGLoggingThread(journal, eeglog);
     timer = new Timer();
     epochArray = getEpochArray(participantNum);
-    epochImagesFiles = getEpochImages();
+    epochImageFiles = getEpochImages();
     // save the header
     journal.addMetaData(getExperimentHeader());
 
@@ -78,9 +90,9 @@ public void onMessage( WebSocket conn, String message ) {
     // when we get a message
 
     // Got a response (it's elapsed time)
-    if(message.charAt(0) == 'R'){
-      long thisTime = System.currentTimeMillis();
-      long elapsedTime = Long.parseLong(message.substring(2));
+    if(message.charAt(0) == 'R' && (responseTime == null ) ){
+      long timeOfResponse = System.`currentTimeMillis();
+      long responseTime = Long.parseLong(message.substring(2));
     }
     else if(message.charAt(0) == 'C'){
       // doNext from user input
@@ -93,7 +105,7 @@ public void onMessage( WebSocket conn, String message ) {
     }
 }
 
-
+sdfads 
 public void sendToAll( String text ) {
   Collection<WebSocket> con = connections();
   synchronized ( con ) {
@@ -116,7 +128,7 @@ public void sendToAll( String text ) {
       String headerString = "/*********************************************/\n";
       headerString += "Participant Number: " + participantNum + "\n";
       headerString += "------Epochs-----\n\n";
-      for(int i = 0; i < epochImageFiles; i++){
+      for(int i = 0; i < epochImageFiles.length; i++){
         headerString += "Epoch " + i + ": \n";
         for(String imageFile : epochImageFiles[i]){
           headerString += imageFile + "\n";
@@ -150,7 +162,7 @@ public void sendToAll( String text ) {
   }
 
   private Queue<Integer> newRandomInts(int length){
-    Queue<Integer> list = new ArrayList<Integer>();
+    Queue<Integer> list = new LinkedList<Integer>();
     for(int i = 0; i < length; i++){
       list.add(i);
     }
@@ -160,42 +172,42 @@ public void sendToAll( String text ) {
 
   /* Returns an array filenames specifying images to be shown in each trial*/
   private String[][] getEpochImages(){
-    String[][] epochImages = new String[NUM_EPOCHS];
+    String[][] epochImages = new String[NUM_EPOCHS][];
     // randomly choose faces and places
-    Queue<Integer> male = new RandomInts(NUM_IMAGES_PER_CATEGORY);
-    Queue<Integer> female = new RandomInts(NUM_IMAGES_PER_CATEGORY);
-    Queue<Integer> outdoor = new RandomInts(NUM_IMAGES_PER_CATEGORY);
-    Queue<Integer> indoor = new RandomInts(NUM_IMAGES_PER_CATEGORY);
+    Queue<Integer> male = newRandomInts(NUM_IMAGES_PER_CATEGORY);
+    Queue<Integer> female = newRandomInts(NUM_IMAGES_PER_CATEGORY);
+    Queue<Integer> outdoor = newRandomInts(NUM_IMAGES_PER_CATEGORY);
+    Queue<Integer> indoor = newRandomInts(NUM_IMAGES_PER_CATEGORY);
 
-    while(int i = 0; i < NUM_EPOCHS; i++){
+    for(int i = 0; i < NUM_EPOCHS; i++){
       // two images for every trial
-      thisEpochImages = new String[TRIALS_PER_EPOCH*2];
+      String[] thisEpochImages = new String[TRIALS_PER_EPOCH*2];
 
       // Do a faces epoch
-      if(i%2){
+      if(i%2 == 0){
         for(int j = 0; j < TRIALS_PER_EPOCH; j+= 2){
           if(male.isEmpty()){
-            male = new RandomInts(NUM_IMAGES_PER_CATEGORY);
+            male = newRandomInts(NUM_IMAGES_PER_CATEGORY);
           }
-          thisEpochImages[j] = MALE_FACES + String.parseString(male.remove()) + ".jpg";
+          thisEpochImages[j] = MALE_FACES + Integer.toString(male.remove()) + ".jpg";
 
           if(female.isEmpty()){
-            female = new RandomInts(NUM_IMAGES_PER_CATEGORY);
+            female = newRandomInts(NUM_IMAGES_PER_CATEGORY);
           }
-          thisEpochImages[j+1] = FEMALE_FACES + String.parseString(female.remove()) + ".jpg";
+          thisEpochImages[j+1] = FEMALE_FACES + Integer.toString(female.remove()) + ".jpg";
         }
       }
       else{
         for(int j = 0; j < TRIALS_PER_EPOCH; j+= 2){
           if(outdoor.isEmpty()){
-            outdoor = new RandomInts(NUM_IMAGES_PER_CATEGORY);
+            outdoor = newRandomInts(NUM_IMAGES_PER_CATEGORY);
           }
-          thisEpochImages[j] = OUTDOOR_PLACES + String.parseString(outdoor.remove()) + ".jpg";
+          thisEpochImages[j] = OUTDOOR_PLACES + Integer.toString(outdoor.remove()) + ".jpg";
 
           if(indoor.isEmpty()){
-            indoor = new RandomInts(NUM_IMAGES_PER_CATEGORY);
+            indoor = newRandomInts(NUM_IMAGES_PER_CATEGORY);
           }
-          thisEpochImages[j+1] = INDOOR_PLACES + String.parseString(indoor.remove()) + ".jpg";
+          thisEpochImages[j+1] = INDOOR_PLACES + Integer.toString(indoor.remove()) + ".jpg";
         }
       }
 
@@ -208,9 +220,9 @@ public void sendToAll( String text ) {
   }
 
 
-  private class Dfa(){
+  private class Dfa{
     private int epochNum;
-    private int trialNum = TRIALS_PER_EPOCH;
+    private int trialNum;
     private boolean inInstructs;
     private boolean inTraining;
 
@@ -218,34 +230,33 @@ public void sendToAll( String text ) {
     public void start(){
       epochNum = 0;
       trialNum = 0;
-      sendToAll("I," + instructions(epochNum));
+      sendToAll(getInstructionCommand(epochNum));
       journal.addEpoch(epochType(epochNum));
       inInstructs = true;
       thisRatio = 0.5;
       // initializes logger, does not start acquisition
-      logger.start();
+      logger.init();
     }
 
     public void doNext(boolean fromTimer){
       // can only get here not from timer if we're in instructs
       if(!fromTimer && !inInstructs) return;
-      // pause eeg logger while we alter its metadata
-      logger.pause();
       if(!inInstructs){
         journal.endTrial(stimOnset, timeOfResponse, responseTime);
         trialNum++;
         if(trialNum < TRIALS_PER_EPOCH){
-          journal.addTrial(thisRatio);
+          journal.addTrial(thisRatio, epochImageFiles[epochNum][trialNum%2],
+            epochImageFiles[epochNum][trialNum%2+1]);
           timeOfResponse = null;
           responseTime = null;
-          logger.resume();
           // Use 50% ratio
           sendToAll(getTrialImagesCommand(epochNum, trialNum, thisRatio));
           stimOnset = System.currentTimeMillis();
-          timer.schedule(doNextLater, RESPONSE_TIME);
+          timer.schedule(new doNextLater(), RESPONSE_TIME);
         }
         // Otherwise, go to next epoch
         else{
+          logger.resume();
           sendToAll(getInstructionCommand(epochNum));
           inInstructs = true;
           journal.endTrial(stimOnset, timeOfResponse, responseTime);
@@ -260,11 +271,11 @@ public void sendToAll( String text ) {
         inInstructs = false;
         journal.addTrial(thisRatio);
         timeOfResponse = null;
-        resposneTime = null;
+        responseTime = null;
         stimOnset = System.currentTimeMillis();
         logger.resume();
         sendToAll(getTrialImagesCommand(epochNum, trialNum, thisRatio));
-        timer.schedule(doNextLater, RESPONSE_TIME);
+        timer.schedule(new doNextLater(), RESPONSE_TIME);
       }
     }
 
@@ -278,7 +289,7 @@ public void sendToAll( String text ) {
 
     public String epochType(int epochNum){
       String epochType;
-      if(epochNum%2)  epochType = "faces,";
+      if(epochNum%2 == 0)  epochType = "faces,";
       else epochType = "places";
 
       if(epochNum >= TRAINING_EPOCHS){
@@ -291,11 +302,11 @@ public void sendToAll( String text ) {
       String instruct = "I,Click when the ";
       if(epochNum%2){
         instruct += "face you see is ";
-        instruct += (Outer.epochArray[0]) ? "female" : "male"
+        instruct += (AttentionExperiment.epochArray[0]) ? "female" : "male";
       }
       else{
         instruct += "place you see is ";
-        instruct += (Outer.epochArray[0]) ? "indoors" : "outdoors"
+        instruct += (AttentionExperiment.epochArray[0]) ? "indoors" : "outdoors";
       }
     }
 

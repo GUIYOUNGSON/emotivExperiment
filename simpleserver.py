@@ -7,7 +7,7 @@ import random
 eegdata = " ".join([str(random.uniform(0, 400)) for r in xrange(14)])
 
 host = '127.0.0.1'
-port = 50005
+port = 6789
 backlog = 5
 client = None
 size = 1024
@@ -19,6 +19,15 @@ s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 s.bind((host, port))
 s.listen(backlog)
 
+while 1:
+    if not client:
+        print "Got Client"
+        client, address = s.accept()
+    data = client.recv(size)
+    if data:
+        print "From client: "
+        print data
+'''
 def sendData():
     if killThread:
         return
@@ -42,3 +51,4 @@ while 1:
         print "Got data from client "
         print data
     eegDataQueue = []
+'''

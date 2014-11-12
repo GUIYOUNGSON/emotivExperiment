@@ -23,17 +23,6 @@ public class EEGJournal{
     writer = new PrintWriter(fileName);
   }
 
-  public String dumpAllData(){
-    String outString = "";
-    for(Epoch thisEpoch: epochQueue){
-      outString += "Epoch " + thisEpoch.epochNum + ":\n";
-      for(Trial trial : thisEpoch.trialQueue){
-        outString += trial;
-      }
-    }
-
-    return outString;
-  }
 
   public void addEpoch(String epochType){
     thisEpoch = new Epoch(epochType, numEpochs);
@@ -43,17 +32,13 @@ public class EEGJournal{
 
   // We only keep track of the ratio with which the pictures were displayed,
   // since which images were displayed is determined in advance.
-  public void addTrial(float ratio){
-    thisEpoch.addTrial(ratio);
+  public void addTrial(float ratio, String im1, String im2){
+    thisEpoch.addTrial(ratio, im1, im2);
   }
 
-  public void endTrial(long timeImageOnset, long timeOfResponse, long resposeTime){
-    if(DEBUG) System.out.println(thisTrial);
+  public void endTrial(long timeImageOnset, long timeOfResponse, long responseTime){
+    if(DEBUG) System.out.println(thisEpoch.thisTrial);
     thisEpoch.endTrial(timeImageOnset, timeOfResponse, responseTime);
-  }
-
-  public void addData(double[][] data, long timeStamp){
-    thisEpoch.addData(data, timeStamp);
   }
 
   public void addMetaData(String metadata){
@@ -68,114 +53,50 @@ public class EEGJournal{
     int epochNum;
     Trial thisTrial;
     int trialNum;
-    ArrayList<ArrayList<Double>> channelData;
-    ArrayList<Long> timeStamps;
 
     public Epoch(String epochType, int epochNum){
       this.epochType = epochType;
       this.epochNum = this.epochNum;
       this.trialNum = 0;
       trialQueue = new LinkedList<Trial>();
-      channelData = new ArrayList<ArrayList<Double>>();
-      // add an array list for each channel
-      for(int i = 0; i < channels.length; i++){
-        channelData.add(i, new ArrayList<Double>());
-      }
-      timeStamps = new ArrayList<Long>();
     }
 
-    public void addTrial(float ratio){
-      thisTrial = new Trial(ratio, trialNum++);
+    public void addTrial(float ratio, String im1, String im2){
+      thisTrial = new Trial(ratio, trialNum++, im1, im2);
       trialQueue.add(thisTrial);
     }
 
-    public void addData(double[][] data, Long timeStamp){
-
-      assert(data[0] != null);
-
-      // add timestamps
-      for(int i = 0; i < data[0].length; i++){
-        timeStamps.add(timeStamp);
-      }
-
-      for(int i = 0; i < channels.length; i++){
-        double[] thisChannelData = data[i];
-        // put data into channelData storage struct
-        ArrayList<Double> thisChannelStorage = channelData.get(i);
-        for(int j = 0; j < thisChannelData.length; j++){
-          thisChannelStorage.add(thisChannelData[j]);
-        }
-      }
-    }
-
-    // Flush all data from queue to trial, and clear channelsData.
+    // Set image onset details, response times, etc.
     public void endTrial(long timeImageOnset, long timeOfResponse, long resposeTime){
-      if(thisTrial == null)  return;
-      Double[][] trialData = new Double[channels.length][];
-      for(int i = 0; i < channels.length; i++){
-        ArrayList<Double> thisChannelData = channelData.get(i);
-        trialData[i] = thisChannelData.toArray(new Double[thisChannelData.size()]);
-        thisChannelData.clear();
-      }
-
-      thisTrial.setData(trialData, timeStamps.toArray(new Long[timeStamps.size()]));
       thisTrial.stimulusOnset = timeImageOnset;
       thisTrial.timeOfResponse = timeOfResponse;
       thisTrial.responseTime = responseTime;
-      timeStamps.clear();
 
-    }
-
-    public void flushEpochToFile(){
-      writer.println("Epoch: " + epochNum + ", EpochType: " + epochType);
-      for(Trial tri : trialQueue){
-        writer.println(tri);
-      }
     }
 
   }
 
   public class Trial{
-    Double[][] data;
-    Long[] timeStamps;
     int trialNum;
     float ratio;
     long stimulusOnset;
     long timeOfResponse;
     long responseTime;
-    boolean correctResponse;
+    String im1;
+    String im2;
 
-    public Trial(float ratio, int trialNum){
+    public Trial(float ratio, int trialNum, String im1, String im2){
+      this.im1 = im1;
+      this.im2 = im2;
       this.trialNum = trialNum;
       this.ratio = ratio;
     }
 
-    public void setData(Double[][] data, Long[] timeStamps){
-      this.data = data;
-      this.timeStamps = timeStamps;
-    }
-
 
     public String toString(){
-      String[] channels = EEGLog.channels;
-      String outString = "Stimulus Onset: " + stimulusOnset + ",Time of Response: " + ((timeOfResponse != null) ? timeOfResponse : "none") +
-      ",Response Time: " + ((responseTime != null) ? responseTime : "none") + "\n";
-
-      for(String channel : channels){
-        outString += channel + ", ";
-      }
-      outString += "\n";
-      if(data == null)  return null;
-      if(data[0] == null || data[0].length <= 0)   return null;
-      int numMeasurements = data[0].length;
-      for(int i = 0; i < numMeasurements; i++){
-        for(int j = 0; j < data.length; j++){
-          outString += data[j][i];
-          outString += ",";
-        }
-        outString += (timeStamps[i] + "\n");
-      }
-      return outString;
+      return "Trial:" + trialNum + ",ImageRatio:" + ratio +
+        ",StimOnset:" + stimulusOnset + ",TimeOfResponse:" + timeOfResponse +
+        ",ResponseTime:" + responseTime;
     }
 
   }
