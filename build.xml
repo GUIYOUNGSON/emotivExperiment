@@ -9,6 +9,7 @@
 			<fileset dir="emotiv/lib"/>
 			<fileset dir="emotiv/build"/>
 			<fileset dir="src"/>
+      <pathelement location="src/java_websocket.jar"/>
 		</path>
 
 		<path id="runpath">
@@ -40,7 +41,7 @@
 
 
     <target name="server">
-        <java fork="true" classname= "ExperimentServer">
+        <java fork="true" classname= "AttentionExperiment">
           <classpath>
             <path location="build"/>
             <path location="src/java_websocket.jar"/>
@@ -49,6 +50,7 @@
           </classpath>
           <arg value="${arg0}"/>
           <arg value="${arg1}"/>
+          <arg value="${arg2}"/>
         </java>
     </target>
 

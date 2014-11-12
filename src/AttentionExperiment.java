@@ -15,19 +15,21 @@ import java.util.*;
 public class AttentionExperiment extends WebSocketServer{
 
   // see what megan does here...
+  static boolean DEBUG = true;
   static int NUM_EPOCHS = 10;
   static int TRAINING_EPOCHS = 5;
   static int FEEDBACK_EPOCHS = 3;
   static int TRIALS_PER_EPOCH = 20;
   static int NUM_IMAGES_PER_CATEGORY = 70;
   static int WEB_SOCKETS_PORT = 8887;
-  static int RESPONES_TIME = 100;
-  static String MALE_FACES ="./frontend/male_neut/";
-  static String FEMALE_FACES ="./frontend/female_neut/";
-  static String OUTDOOR_PLACES ="./frontend/outdoor/";
-  static String INDOOR_PLACES ="./frontend/indoor/";
+  static int RESPONSE_TIME = 100*1000;
+  static String MALE_FACES ="./images/male_neut/";
+  static String FEMALE_FACES ="./images/female_neut/";
+  static String OUTDOOR_PLACES ="./images/outdoor/";
+  static String INDOOR_PLACES ="./images/indoor/";
 
   boolean feedback;
+  boolean withEEG;
   Timer timer;
   EEGJournal journal;
   EEGLog eeglog;
@@ -40,23 +42,33 @@ public class AttentionExperiment extends WebSocketServer{
 
   int currentEpoch = 0;
   int currenTrial = 0;
-  long timeOfResponse;
-  long responseTime;
-  long stimOnset;
+  Long timeOfResponse;
+  Long responseTime;
+  Long stimOnset;
   double thisRatio;
 
   Dfa dfa;
 
+  // starts experiment with real eeg data by default
   public AttentionExperiment (int participantNum, String outputDir, boolean realFeedback) throws Exception{
+    this(participantNum, outputDir, realFeedback, true);
+  }
+
+  public AttentionExperiment (int participantNum, String outputDir, boolean realFeedback, boolean withEEG) throws Exception{
+    super( new InetSocketAddress( WEB_SOCKETS_PORT ) );
     this.participantNum = participantNum;
     this.feedback = realFeedback;
+    this.withEEG = withEEG;
     journal = new EEGJournal(outputDir, participantNum);
-    eeglog = new EEGLog();
-    eeglog.tryConnect();
-    System.out.println("Successfully connected to emotiv");
-    eeglog.addUser();
-    System.out.println("Successfully added user");
-    logger = new EEGLoggingThread(journal, eeglog);
+    if(withEEG){
+      eeglog = new EEGLog();
+      eeglog.tryConnect();
+      System.out.println("Successfully connected to emotiv");
+      eeglog.addUser();
+      System.out.println("Successfully added user");
+      logger = new EEGLoggingThread(eeglog, outputDir + "eegdata.csv");
+    }
+
     timer = new Timer();
     epochArray = getEpochArray(participantNum);
     epochImageFiles = getEpochImages();
@@ -66,32 +78,14 @@ public class AttentionExperiment extends WebSocketServer{
     dfa = new Dfa();
   }
 
-  public static void main(String[] args){
-    if(args.length != 3){
-      System.out.println("Usage: <ParticipantNum> <outputDir> <realFeedback (1,0)>");
-      return;
-    }
-
-    int participantNum = Integer.parseInt(args[0]);
-    String outputDir = args[1];
-    boolean feedback = (Integer.parseInt(args[2]) == 1) ? true : false;
-
-    AttentionExperiment thisExperiment =
-      new AttentionExperiment(participantNum, outputDir, feedback);
-
-    thisExperiment.startExperiment();
-  }
-
-
-
 
 @Override
 public void onMessage( WebSocket conn, String message ) {
     // when we get a message
-
+    if(DEBUG) System.out.println("Message from client " + message);
     // Got a response (it's elapsed time)
     if(message.charAt(0) == 'R' && (responseTime == null ) ){
-      long timeOfResponse = System.`currentTimeMillis();
+      long timeOfResponse = System.currentTimeMillis();
       long responseTime = Long.parseLong(message.substring(2));
     }
     else if(message.charAt(0) == 'C'){
@@ -105,8 +99,42 @@ public void onMessage( WebSocket conn, String message ) {
     }
 }
 
-sdfads 
+
+
+/*---- Websocket Server Stuff ----*/
+
+
+@Override
+public void onError(WebSocket conn, Exception e){
+  System.out.println("Errror with websocket connection: " +e);
+  e.printStackTrace();
+  return;
+}
+
+@Override
+public void onClose( WebSocket conn, int code, String reason, boolean remote ){
+  System.out.println(conn + " has disconnected");
+  return;
+}
+
+@Override
+	public void onOpen( WebSocket conn, ClientHandshake handshake ) {
+    System.out.println("Connected to " + conn);
+  }
+
+@Override
+	public void onFragment( WebSocket conn, Framedata fragment ) {
+		System.out.println( "received fragment: " + fragment );
+}
+
+/*--------*/
+
+
+
+
+
 public void sendToAll( String text ) {
+  if(DEBUG) System.out.println("Sending message " + text);
   Collection<WebSocket> con = connections();
   synchronized ( con ) {
     for( WebSocket c : con ) {
@@ -162,12 +190,13 @@ public void sendToAll( String text ) {
   }
 
   private Queue<Integer> newRandomInts(int length){
-    Queue<Integer> list = new LinkedList<Integer>();
+    LinkedList<Integer> list = new LinkedList<Integer>();
     for(int i = 0; i < length; i++){
       list.add(i);
     }
     Collections.shuffle(list);
-    return list;
+    Queue<Integer> queue = list;
+    return queue;
   }
 
   /* Returns an array filenames specifying images to be shown in each trial*/
@@ -235,14 +264,20 @@ public void sendToAll( String text ) {
       inInstructs = true;
       thisRatio = 0.5;
       // initializes logger, does not start acquisition
-      logger.init();
+      if(withEEG) logger.init();
     }
 
     public void doNext(boolean fromTimer){
       // can only get here not from timer if we're in instructs
       if(!fromTimer && !inInstructs) return;
       if(!inInstructs){
-        journal.endTrial(stimOnset, timeOfResponse, responseTime);
+        if(timeOfResponse != null){
+            journal.endTrial(stimOnset, timeOfResponse, responseTime);
+        }
+        else{
+          journal.endTrial(stimOnset);
+        }
+
         trialNum++;
         if(trialNum < TRIALS_PER_EPOCH){
           journal.addTrial(thisRatio, epochImageFiles[epochNum][trialNum%2],
@@ -256,10 +291,15 @@ public void sendToAll( String text ) {
         }
         // Otherwise, go to next epoch
         else{
-          logger.resume();
+          if(withEEG) logger.resume();
           sendToAll(getInstructionCommand(epochNum));
           inInstructs = true;
-          journal.endTrial(stimOnset, timeOfResponse, responseTime);
+          if(timeOfResponse != null){
+              journal.endTrial(stimOnset, timeOfResponse, responseTime);
+          }
+          else{
+            journal.endTrial(stimOnset);
+          }
           // Show the next instruction
           epochNum++;
           journal.addEpoch(epochType(epochNum));
@@ -269,11 +309,12 @@ public void sendToAll( String text ) {
       // advance to start of trial
       else{
         inInstructs = false;
-        journal.addTrial(thisRatio);
+        journal.addTrial(thisRatio, epochImageFiles[epochNum][trialNum%2],
+          epochImageFiles[epochNum][trialNum%2+1]);
         timeOfResponse = null;
         responseTime = null;
         stimOnset = System.currentTimeMillis();
-        logger.resume();
+        if(withEEG) logger.resume();
         sendToAll(getTrialImagesCommand(epochNum, trialNum, thisRatio));
         timer.schedule(new doNextLater(), RESPONSE_TIME);
       }
@@ -300,14 +341,16 @@ public void sendToAll( String text ) {
 
     public String getInstructionCommand(int epochNum){
       String instruct = "I,Click when the ";
-      if(epochNum%2){
+      if(epochNum%2 == 0){
         instruct += "face you see is ";
-        instruct += (AttentionExperiment.epochArray[0]) ? "female" : "male";
+        instruct += (epochArray[0]) ? "female" : "male";
       }
       else{
         instruct += "place you see is ";
-        instruct += (AttentionExperiment.epochArray[0]) ? "indoors" : "outdoors";
+        instruct += (epochArray[0]) ? "indoors" : "outdoors";
       }
+
+      return instruct;
     }
 
     public String getTrialImagesCommand(int epochNum, int trialNum, double ratio){
@@ -317,6 +360,28 @@ public void sendToAll( String text ) {
 
   }
 
+  public static void main(String[] args){
+    if(args.length != 3){
+      System.out.println("Usage: <ParticipantNum> <outputDir> <realFeedback (1,0)>");
+      return;
+    }
 
+    int participantNum = Integer.parseInt(args[0]);
+    String outputDir = args[1];
+    boolean feedback = (Integer.parseInt(args[2]) == 1) ? true : false;
+
+    try{
+      // don't use a real eeg
+      AttentionExperiment thisExperiment =
+        new AttentionExperiment(participantNum, outputDir, feedback, false);
+      thisExperiment.start();
+      thisExperiment.startExperiment();
+    }
+    catch(Exception e){
+      System.out.println("Couldn't start experiment " + e);
+      e.printStackTrace();
+      return;
+    }
+  }
 
 }

@@ -1,3 +1,5 @@
+console.log("Running server software");
+DEBUG = true;
 var windowWidth = $(window).width();
 var windowHeight = $(window).height();
 
@@ -19,6 +21,7 @@ var inInstruct = true;
 
 
 function handleKeypress(key){
+  if(DEBUG) console.log("Got keypress from " + key);
   if(key == 'q'){
     connection.send("Qq");
     showText("Quit!");
@@ -29,21 +32,17 @@ function handleKeypress(key){
     responseTime = responseTime = startTrialTime;
     connection.send("R," + responseTime);
   }
-  // advance to next key
+  // advance to next screen
   else{
-    connection.send("N");
+    connection.send("C");
   }
 }
 
-/* Show 'images/category1/image1' and 'images/category2/image2' with
-opacity opacity2 */
-function showPics(category1, image1, category2, image2, opacity2) {
+function showPics(image1, image2, opacity2) {
   // Hide any text first
   $("#instructs").text("");
-  stimImage1.attr("src", "./images/" + category1 + "/" +
-    image1 +".jpg");
-  stimImage2.attr("src", "./images/" + category2 + "/" +
-    image2 +".jpg");
+  stimImage1.attr("src", image1);
+  stimImage2.attr("src", image2);
   stimImage2.attr("opacity", opacity2);
 }
 
@@ -80,7 +79,9 @@ function startTrial(image1, image2, opacity2){
 
   startTrialTime = new Date().getTime();
   inInstruct = false;
-  showPics(category1, image1, category2, image2, opacity2);
+  console.log("Im 1 is " + image1);
+  console.log("Im 2 is " + image2);
+  showPics(image1, image2, opacity2);
 }
 
 
@@ -105,6 +106,7 @@ $(function () {
   instruction) */
 
   connection.onmessage = function (message) {
+    if(DEBUG)   console.log("Got command " + message.data);
     var args = message.data.split(",");
     // Show an instruction
     if(args[0] == 'I'){
@@ -114,7 +116,6 @@ $(function () {
       startTrial(args[1], args[2], args[3]);
     }
 
-    console.log("Got command " + args);
 
   };
 });

@@ -5,7 +5,7 @@ public class EEGJournal{
 
   private static boolean DEBUG = true;
   private int participantNum;
-  private String fileName = "testdata/testfile.csv";
+  private String fileName = "testdata/testfile.csv"; // in the future, do not hard code
   private PrintWriter writer;
   private Queue<Epoch> epochQueue;
   private int numEpochs;
@@ -17,10 +17,10 @@ public class EEGJournal{
   public EEGJournal(String outputDir, int participantNum) throws IOException{
     this.participantNum = participantNum;
     Date thisDate = new Date();
-    // this.fileName = outputDir + "/" + thisDate + "_" + participantNum;
     numEpochs = 0;
     epochQueue = new LinkedList<Epoch>();
     writer = new PrintWriter(fileName);
+    userMetaData = new ArrayList<String>();
   }
 
 
@@ -32,13 +32,18 @@ public class EEGJournal{
 
   // We only keep track of the ratio with which the pictures were displayed,
   // since which images were displayed is determined in advance.
-  public void addTrial(float ratio, String im1, String im2){
+  public void addTrial(double ratio, String im1, String im2){
     thisEpoch.addTrial(ratio, im1, im2);
   }
 
   public void endTrial(long timeImageOnset, long timeOfResponse, long responseTime){
     if(DEBUG) System.out.println(thisEpoch.thisTrial);
     thisEpoch.endTrial(timeImageOnset, timeOfResponse, responseTime);
+  }
+
+  public void endTrial(long timeImageOnset){
+    if(DEBUG) System.out.println(thisEpoch.thisTrial);
+    thisEpoch.endTrial(timeImageOnset, -1, -1);
   }
 
   public void addMetaData(String metadata){
@@ -61,13 +66,13 @@ public class EEGJournal{
       trialQueue = new LinkedList<Trial>();
     }
 
-    public void addTrial(float ratio, String im1, String im2){
+    public void addTrial(double ratio, String im1, String im2){
       thisTrial = new Trial(ratio, trialNum++, im1, im2);
       trialQueue.add(thisTrial);
     }
 
     // Set image onset details, response times, etc.
-    public void endTrial(long timeImageOnset, long timeOfResponse, long resposeTime){
+    public void endTrial(long timeImageOnset, long timeOfResponse, long responseTime){
       thisTrial.stimulusOnset = timeImageOnset;
       thisTrial.timeOfResponse = timeOfResponse;
       thisTrial.responseTime = responseTime;
@@ -78,14 +83,14 @@ public class EEGJournal{
 
   public class Trial{
     int trialNum;
-    float ratio;
+    double ratio;
     long stimulusOnset;
     long timeOfResponse;
     long responseTime;
     String im1;
     String im2;
 
-    public Trial(float ratio, int trialNum, String im1, String im2){
+    public Trial(double ratio, int trialNum, String im1, String im2){
       this.im1 = im1;
       this.im2 = im2;
       this.trialNum = trialNum;
