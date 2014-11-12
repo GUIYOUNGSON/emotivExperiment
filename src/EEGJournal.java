@@ -44,6 +44,8 @@ public class EEGJournal{
   public void endTrial(long timeImageOnset){
     if(DEBUG) System.out.println(thisEpoch.thisTrial);
     thisEpoch.endTrial(timeImageOnset, -1, -1);
+    writer.println(thisEpoch.thisTrial);
+    writer.flush();
   }
 
   public void addMetaData(String metadata){

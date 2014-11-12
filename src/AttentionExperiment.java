@@ -16,17 +16,17 @@ public class AttentionExperiment extends WebSocketServer{
 
   // see what megan does here...
   static boolean DEBUG = true;
-  static int NUM_EPOCHS = 10;
-  static int TRAINING_EPOCHS = 5;
-  static int FEEDBACK_EPOCHS = 3;
-  static int TRIALS_PER_EPOCH = 20;
+  static int NUM_EPOCHS = 5;
+  static int TRAINING_EPOCHS = 3;
+  static int FEEDBACK_EPOCHS = 2;
+  static int TRIALS_PER_EPOCH = 4;
   static int NUM_IMAGES_PER_CATEGORY = 70;
-  static int WEB_SOCKETS_PORT = 8887;
-  static int RESPONSE_TIME = 100*1000;
-  static String MALE_FACES ="./images/male_neut/";
-  static String FEMALE_FACES ="./images/female_neut/";
-  static String OUTDOOR_PLACES ="./images/outdoor/";
-  static String INDOOR_PLACES ="./images/indoor/";
+  static int WEB_SOCKETS_PORT = 8885;
+  static int RESPONSE_TIME = 100*10;
+  static String MALE_FACES ="./imagesRenamed/male_neut/";
+  static String FEMALE_FACES ="./imagesRenamed/female_neut/";
+  static String OUTDOOR_PLACES ="./imagesRenamed/outdoor/";
+  static String INDOOR_PLACES ="./imagesRenamed/indoor/";
 
   boolean feedback;
   boolean withEEG;
@@ -56,6 +56,7 @@ public class AttentionExperiment extends WebSocketServer{
 
   public AttentionExperiment (int participantNum, String outputDir, boolean realFeedback, boolean withEEG) throws Exception{
     super( new InetSocketAddress( WEB_SOCKETS_PORT ) );
+
     this.participantNum = participantNum;
     this.feedback = realFeedback;
     this.withEEG = withEEG;
@@ -75,7 +76,6 @@ public class AttentionExperiment extends WebSocketServer{
     // save the header
     journal.addMetaData(getExperimentHeader());
 
-    dfa = new Dfa();
   }
 
 
@@ -85,8 +85,8 @@ public void onMessage( WebSocket conn, String message ) {
     if(DEBUG) System.out.println("Message from client " + message);
     // Got a response (it's elapsed time)
     if(message.charAt(0) == 'R' && (responseTime == null ) ){
-      long timeOfResponse = System.currentTimeMillis();
-      long responseTime = Long.parseLong(message.substring(2));
+      timeOfResponse = System.currentTimeMillis();
+      responseTime = Long.parseLong(message.substring(2));
     }
     else if(message.charAt(0) == 'C'){
       // doNext from user input
@@ -106,7 +106,7 @@ public void onMessage( WebSocket conn, String message ) {
 
 @Override
 public void onError(WebSocket conn, Exception e){
-  System.out.println("Errror with websocket connection: " +e);
+  System.out.println("Error with websocket connection: " +e);
   e.printStackTrace();
   return;
 }
@@ -114,12 +114,14 @@ public void onError(WebSocket conn, Exception e){
 @Override
 public void onClose( WebSocket conn, int code, String reason, boolean remote ){
   System.out.println(conn + " has disconnected");
+  if(logger != null)  logger.close();
   return;
 }
 
 @Override
 	public void onOpen( WebSocket conn, ClientHandshake handshake ) {
     System.out.println("Connected to " + conn);
+    startExperiment();
   }
 
 @Override
@@ -148,6 +150,7 @@ public void sendToAll( String text ) {
   /* Set up any scheduled processes */
   public void startExperiment(){
     // shows the first instruction.
+    dfa = new Dfa();
     dfa.start();
   };
 
@@ -209,37 +212,34 @@ public void sendToAll( String text ) {
     Queue<Integer> indoor = newRandomInts(NUM_IMAGES_PER_CATEGORY);
 
     for(int i = 0; i < NUM_EPOCHS; i++){
-      // two images for every trial
+      // two images for every trial. This is hardcoded. need to fix
       String[] thisEpochImages = new String[TRIALS_PER_EPOCH*2];
-
-      // Do a faces epoch
-      if(i%2 == 0){
-        for(int j = 0; j < TRIALS_PER_EPOCH; j+= 2){
-          if(male.isEmpty()){
-            male = newRandomInts(NUM_IMAGES_PER_CATEGORY);
-          }
-          thisEpochImages[j] = MALE_FACES + Integer.toString(male.remove()) + ".jpg";
-
-          if(female.isEmpty()){
-            female = newRandomInts(NUM_IMAGES_PER_CATEGORY);
-          }
-          thisEpochImages[j+1] = FEMALE_FACES + Integer.toString(female.remove()) + ".jpg";
+      for(int j = 0; j < TRIALS_PER_EPOCH; j++){
+        if(male.isEmpty()){
+          male = newRandomInts(NUM_IMAGES_PER_CATEGORY);
+        }
+        if(female.isEmpty()){
+          female = newRandomInts(NUM_IMAGES_PER_CATEGORY);
+        }
+        if(outdoor.isEmpty()){
+          outdoor = newRandomInts(NUM_IMAGES_PER_CATEGORY);
+        }
+        if(indoor.isEmpty()){
+          indoor = newRandomInts(NUM_IMAGES_PER_CATEGORY);
+        }
+        if(Math.random() > 0.5){
+          thisEpochImages[j*2] = MALE_FACES + male.remove() + ".jpg";
+        }
+        else{
+          thisEpochImages[j*2] = FEMALE_FACES + female.remove() + ".jpg";
+        }
+        if(Math.random() > 0.5){
+          thisEpochImages[j*2+1] = OUTDOOR_PLACES + outdoor.remove() + ".jpg";
+        }
+        else{
+          thisEpochImages[j*2+1] = INDOOR_PLACES + indoor.remove() + ".jpg";
         }
       }
-      else{
-        for(int j = 0; j < TRIALS_PER_EPOCH; j+= 2){
-          if(outdoor.isEmpty()){
-            outdoor = newRandomInts(NUM_IMAGES_PER_CATEGORY);
-          }
-          thisEpochImages[j] = OUTDOOR_PLACES + Integer.toString(outdoor.remove()) + ".jpg";
-
-          if(indoor.isEmpty()){
-            indoor = newRandomInts(NUM_IMAGES_PER_CATEGORY);
-          }
-          thisEpochImages[j+1] = INDOOR_PLACES + Integer.toString(indoor.remove()) + ".jpg";
-        }
-      }
-
       epochImages[i] = thisEpochImages;
 
     }
@@ -279,6 +279,10 @@ public void sendToAll( String text ) {
         }
 
         trialNum++;
+
+        // random feedback data
+        if(epochNum > TRAINING_EPOCHS)  thisRatio = Math.random();
+
         if(trialNum < TRIALS_PER_EPOCH){
           journal.addTrial(thisRatio, epochImageFiles[epochNum][trialNum%2],
             epochImageFiles[epochNum][trialNum%2+1]);
@@ -302,6 +306,10 @@ public void sendToAll( String text ) {
           }
           // Show the next instruction
           epochNum++;
+          if(epochNum >= NUM_EPOCHS){
+            sendToAll("I,Done! Good Job!");
+            return;
+          }
           journal.addEpoch(epochType(epochNum));
           trialNum = 0;
         }
@@ -354,6 +362,10 @@ public void sendToAll( String text ) {
     }
 
     public String getTrialImagesCommand(int epochNum, int trialNum, double ratio){
+      if(epochImageFiles[epochNum][trialNum*2] == null){
+        System.out.println("Got null image at epoch " + epochNum + " trial " + trialNum);
+        return null;
+      }
       return "S," + epochImageFiles[epochNum][trialNum*2] + "," + epochImageFiles[epochNum][trialNum*2+1] +
       "," + ratio;
     }
@@ -375,7 +387,6 @@ public void sendToAll( String text ) {
       AttentionExperiment thisExperiment =
         new AttentionExperiment(participantNum, outputDir, feedback, false);
       thisExperiment.start();
-      thisExperiment.startExperiment();
     }
     catch(Exception e){
       System.out.println("Couldn't start experiment " + e);

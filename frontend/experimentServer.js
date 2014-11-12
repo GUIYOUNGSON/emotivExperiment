@@ -14,7 +14,6 @@ $(window).bind('keypress', function(e) {
 
 var connection;
 var DEBUG = true;
-var date = new Date();
 var startTrialTime;
 var responseTime;
 var inInstruct = true;
@@ -29,7 +28,7 @@ function handleKeypress(key){
   }
   if(!inInstruct){
     responseTime = new Date().getTime();
-    responseTime = responseTime = startTrialTime;
+    responseTime = responseTime - startTrialTime;
     connection.send("R," + responseTime);
   }
   // advance to next screen
@@ -41,6 +40,7 @@ function handleKeypress(key){
 function showPics(image1, image2, opacity2) {
   // Hide any text first
   $("#instructs").text("");
+  $("#image-holder").css('visibility', 'visible');
   stimImage1.attr("src", image1);
   stimImage2.attr("src", image2);
   stimImage2.attr("opacity", opacity2);
@@ -91,8 +91,8 @@ $(function () {
   // if user is running mozilla then use it's built-in WebSocket
   window.WebSocket = window.WebSocket || window.MozWebSocket;
 
-  connection = new WebSocket('ws://127.0.0.1:8887');
-  $.connection = connection;
+  connection = new WebSocket('ws://127.0.0.1:8885');
+  $.conn = connection;
   connection.onopen = function () {
       // connection is opened and ready to use
   };
