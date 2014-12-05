@@ -1,57 +1,74 @@
 import java.util.*;
 import java.io.*;
+import java.text.*;
+import java.util.concurrent.locks.*;
 
 public class EEGJournal{
 
   private static boolean DEBUG = true;
   private int participantNum;
-  private String fileName = "testdata/testfile.csv"; // in the future, do not hard code
+  private String fileName;
   private PrintWriter writer;
   private Queue<Epoch> epochQueue;
   private int numEpochs;
   private Epoch thisEpoch;
-  private ArrayList<String> userMetaData;
 
   static String[] channels = EEGLog.channels;
 
-  public EEGJournal(String outputDir, int participantNum) throws IOException{
+  public EEGJournal(String outputDir, int participantNum, String header) throws IOException{
+    SimpleDateFormat ft = new SimpleDateFormat("yyyy.MM.dd.hh.mm");
+    fileName = outputDir + "/journal_" + participantNum + "_" + ft.format(new Date());
     this.participantNum = participantNum;
     Date thisDate = new Date();
     numEpochs = 0;
     epochQueue = new LinkedList<Epoch>();
+    new File(fileName);
     writer = new PrintWriter(fileName);
-    userMetaData = new ArrayList<String>();
+    System.out.println("New EEG Journal, writing to file " + fileName);
+    // write header data to file
+    writer.println(header);
+  }
+
+  public EEGJournal(String outputDir, int participantNum) throws IOException{
+    this(outputDir, participantNum,  "Participant " + participantNum + ", Date: " + new Date());
   }
 
 
-  public void addEpoch(String epochType){
+  public synchronized void addEpoch(String epochType){
     thisEpoch = new Epoch(epochType, numEpochs);
     numEpochs++;
     epochQueue.add(thisEpoch);
+    //writer.println(thisEpoch.getHeader());
   }
 
   // We only keep track of the ratio with which the pictures were displayed,
   // since which images were displayed is determined in advance.
-  public void addTrial(double ratio, String im1, String im2){
+  public synchronized void addTrial(double ratio, String im1, String im2){
     thisEpoch.addTrial(ratio, im1, im2);
   }
 
-  public void endTrial(long timeImageOnset, long timeOfResponse, long responseTime){
+  /* End trial (with response times)*/
+  public synchronized void endTrial(long timeImageOnset, long timeOfResponse, long responseTime){
     if(DEBUG) System.out.println(thisEpoch.thisTrial);
     thisEpoch.endTrial(timeImageOnset, timeOfResponse, responseTime);
+    //writer.println(thisEpoch.thisTrial);
   }
 
-  public void endTrial(long timeImageOnset){
+  // End trial (without response)
+  public synchronized void endTrial(long timeImageOnset){
     if(DEBUG) System.out.println(thisEpoch.thisTrial);
     thisEpoch.endTrial(timeImageOnset, -1, -1);
-    writer.println(thisEpoch.thisTrial);
-    writer.flush();
   }
 
-  public void addMetaData(String metadata){
-    userMetaData.add(metadata);
+  public synchronized void close(){
+    for(Epoch thisEpoch : epochQueue){
+      writer.println("Epoch " + thisEpoch.epochNum + " Type: " + thisEpoch.epochType);
+      for(Trial trial : thisEpoch.trialQueue){
+        writer.println(trial);
+      }
+    }
+    writer.close();
   }
-
 
   public class Epoch{
 
@@ -63,9 +80,13 @@ public class EEGJournal{
 
     public Epoch(String epochType, int epochNum){
       this.epochType = epochType;
-      this.epochNum = this.epochNum;
+      this.epochNum = epochNum;
       this.trialNum = 0;
       trialQueue = new LinkedList<Trial>();
+    }
+
+    public String getHeader(){
+      return "Epoch: " + epochNum + ", Type: " + epochType;
     }
 
     public void addTrial(double ratio, String im1, String im2){

@@ -38,6 +38,11 @@
         <javac srcdir="src" destdir="build" classpathref="classpath" debug="on"/>
     </target>
 
+    <target name="deldata" depends="">
+      <delete dir="testdata">
+      <mkdir dir="testdata">
+    </target>
+
 
 
     <target name="server">
@@ -48,9 +53,15 @@
             <path location="emotiv/build"/>
             <path location="emotiv/lib/jna.jar"/>
           </classpath>
+          <arg value="0"/>
+          <arg value="testdata"/>
+          <arg value="1"/>
+          <arg value="1"/>
+          <!--
           <arg value="${arg0}"/>
           <arg value="${arg1}"/>
           <arg value="${arg2}"/>
+          -->
         </java>
     </target>
 

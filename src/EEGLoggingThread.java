@@ -1,12 +1,14 @@
 import java.util.*;
+import java.util.concurrent.locks.*;
 import java.io.*;
 import java.net.*;
-import java.util.*;
+import java.text.*;
 
 class EEGLoggingThread implements Runnable {
 
   private Thread t;
   private EEGLog log;
+  private boolean withTcp;
   private volatile boolean doAcquire = false;
   private volatile boolean endAcquire = false;
   private int NUM_CHANNELS = 25;//14;
@@ -15,41 +17,50 @@ class EEGLoggingThread implements Runnable {
   ArrayList<ArrayList<Double>> data;
   ArrayList<Long> timestamps;
   DataOutputStream outToServer;
+  DataInputStream inFromServer;
   private PrintWriter writer;
 
-  public EEGLoggingThread(EEGLog log) throws Exception{
-    this.log = log;
-    data = new ArrayList<ArrayList<Double>> ();
-    for(int i = 0; i < NUM_CHANNELS; i++){
-      data.add(i, new ArrayList<Double>());
-    }
-    timestamps = new ArrayList<Long>();
-    Socket clientSocket = new Socket("localhost", PUBLISH_PORT);
-    outToServer = new DataOutputStream(clientSocket.getOutputStream());
-  }
 
-  public EEGLoggingThread(EEGLog log, String fileName) throws Exception{
+  final Lock lock = new ReentrantLock();
+  final Condition resumed = lock.newCondition();
+
+  public EEGLoggingThread(EEGLog log, String outputDir, int participantNum, boolean withTcp) throws Exception{
+    if(withTcp){
+      System.out.println("TCP is not yet supported");
+      withTcp = false;
+    }
+    SimpleDateFormat ft = new SimpleDateFormat("yyyy.MM.dd.hh.mm");
+    String fileName = outputDir + "/eeg_" + participantNum + "_" + ft.format(new Date());
+    System.out.println("In logging thread, beginning data acquisition to file " + fileName);
     this.log = log;
+    this.withTcp = withTcp;
     data = new ArrayList<ArrayList<Double>> ();
     for(int i = 0; i < NUM_CHANNELS; i++){
       data.add(i, new ArrayList<Double>());
     }
     timestamps = new ArrayList<Long>();
-    Socket clientSocket = new Socket("localhost", PUBLISH_PORT);
-    outToServer = new DataOutputStream(clientSocket.getOutputStream());
-    writer = new PrintWriter(fileName);
+    if(withTcp){
+      System.out.println("Opened EEG data server on port " + PUBLISH_PORT);
+      Socket clientSocket = new Socket("localhost", PUBLISH_PORT);
+      outToServer = new DataOutputStream(clientSocket.getOutputStream());
+    }
+    File file = new File(fileName);
+    writer = new PrintWriter(file);
   }
 
 
 
   public void run() {
     while(true){
+      lock.lock();
       try {
         if(endAcquire){
           System.out.println("Thread exiting.");
           return;
         }
-        while(!doAcquire)	wait();
+        if(!doAcquire){
+          resumed.wait();
+        }
 
         double[][] thisData = log.getEEG();
         long timestamp = System.currentTimeMillis();
@@ -70,34 +81,38 @@ class EEGLoggingThread implements Runnable {
         System.out.println("Exception in EEGLogging thread: " + e);
         e.printStackTrace(System.out);
         return;
-
       }
+      finally{
+        lock.unlock();
+      }
+
     }
 
   }
 
   public void onData(double[][] data){
-    System.out.println("Sending data to server");
     for(int datum = 0; datum < data[0].length; datum++){
       String outString = "";
       for(int channel = 0; channel < data.length; channel++){
-        try{
-          outToServer.writeDouble(data[channel][datum]);
-        }
-        catch(Exception e){
-          System.out.println("Couldn't send data to server: " + e);
+        if(withTcp){
+          try{
+            outToServer.writeDouble(data[channel][datum]);
+          }
+          catch(Exception e){
+            System.out.println("Couldn't send data to server: " + e);
+          }
         }
 
         outString += data[channel][datum] + ",";
       }
-      outString = outString.substring(0, (outString.length() - 1)) + '\n';
+      outString = outString + System.currentTimeMillis() + '\n';
       try{
         if(writer != null){
             writer.println(outString);
         }
       }
       catch(Exception e){
-        System.out.println("Exception with writing to server: " + e);
+        System.out.println("Exception with writing to file: " + e);
       }
 
     }
@@ -114,25 +129,36 @@ class EEGLoggingThread implements Runnable {
     }
   }
   public void pause(){
+    lock.lock();
     this.doAcquire = false;
+    lock.unlock();
   }
 
   public void close(){
+    writer.close();
+    lock.lock();
     this.endAcquire = true;
+    lock.unlock();
   }
 
   public void resume(){
+    lock.lock();
     this.doAcquire = true;
+    resumed.signal();
+    lock.unlock();
   }
 
+
+/* for testing */
   public static void main(String[] args){
+    /*
     EEGLoggingThread thisLog;
     try{
       EEGLog log = new EEGLog();
       log.tryConnect();
       log.addUser();
       thisLog = new EEGLoggingThread(log,
-        "/Users/Dale/Dropbox/code/neuromancer/testdata/eegdata.csv");
+        "/Users/Dale/Dropbox/code/neuromancer/testdata/eegdata.csv", true);
     }
     catch(Exception e){
       System.out.println(e);
@@ -143,6 +169,8 @@ class EEGLoggingThread implements Runnable {
 
     thisLog.init();
     thisLog.resume();
+    */
+    return;
   }
 
 }

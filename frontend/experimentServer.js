@@ -21,7 +21,7 @@ var inInstruct = true;
 
 function handleKeypress(key){
   if(DEBUG) console.log("Got keypress from " + key);
-  if(key == 'q'){
+  if(String.fromCharCode(key) == 'q'){
     connection.send("Qq");
     showText("Quit!");
     return;
@@ -40,14 +40,15 @@ function handleKeypress(key){
 function showPics(image1, image2, opacity2) {
   // Hide any text first
   $("#instructs").text("");
-  $("#image-holder").css('visibility', 'visible');
   stimImage1.attr("src", image1);
   stimImage2.attr("src", image2);
   stimImage2.attr("opacity", opacity2);
+  $("#image-holder").css('visibility', 'visible');
 }
 
 /* Hide image, display instructions */
 function showText(text){
+  // Hide image
   inInstruct = true;
   $("#image-holder").css('visibility', 'hidden');
   $("#instructs").text(text);

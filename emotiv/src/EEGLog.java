@@ -88,7 +88,7 @@ public class EEGLog {
 		connected = true;
 		hData = Edk.INSTANCE.EE_DataCreate();
 		Edk.INSTANCE.EE_DataSetBufferSizeInSec(secs);
-		System.out.println("Ready to collect data");
+		System.out.println("EEGLog initialized");
 		return 1;
 	}
 
