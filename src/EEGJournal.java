@@ -35,6 +35,10 @@ public class EEGJournal{
   }
 
 
+  public String getFilename(){
+    return fileName;
+  }
+  
   public synchronized void addEpoch(String epochType){
     thisEpoch = new Epoch(epochType, numEpochs);
     numEpochs++;

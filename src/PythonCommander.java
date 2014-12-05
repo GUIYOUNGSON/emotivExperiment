@@ -7,8 +7,6 @@ public class PythonCommander{
   BufferedReader input;
   BufferedWriter output;
   BufferedReader error;
-  String dataFile;
-  Process p;
   double[] model;
 
   public PythonCommander() throws Exception{
@@ -39,7 +37,8 @@ public class PythonCommander{
 
   }
 
-  public boolean classify(double[] data){
+  public boolean classify(String data){
+    System.out.println("Trying to classify " + data);
     return false;
   }
 
@@ -55,7 +54,7 @@ public class PythonCommander{
       e.printStackTrace();
       return;
     }
-    double[] data = new double[3];
+    String data = "dogs";
     System.out.println(comm.classify(data));
 
     }

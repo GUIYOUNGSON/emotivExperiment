@@ -18,7 +18,14 @@ class EEGLoggingThread implements Runnable {
   DataOutputStream outToServer;
   DataInputStream inFromServer;
   private PrintWriter writer;
+  private String fileName;
 
+  PythonCommander python;
+  private boolean classify;
+  private boolean recentClassify = false;
+  private int BUFFER_SIZE = 10;
+  private int currentBuff = 0;
+  private String finalData;
 
   final Lock lock = new ReentrantLock();
   final Condition resumed = lock.newCondition();
@@ -29,7 +36,7 @@ class EEGLoggingThread implements Runnable {
       withTcp = false;
     }
     SimpleDateFormat ft = new SimpleDateFormat("yyyy.MM.dd.hh.mm");
-    String fileName = outputDir + "/eeg_" + participantNum + "_" + ft.format(new Date());
+    fileName = outputDir + "/eeg_" + participantNum + "_" + ft.format(new Date());
     System.out.println("In logging thread, beginning data acquisition to file " + fileName);
     this.log = log;
     this.withTcp = withTcp;
@@ -44,9 +51,12 @@ class EEGLoggingThread implements Runnable {
     }
     File file = new File(fileName);
     writer = new PrintWriter(file);
+    this.classify = false;
   }
 
-
+  public String getFilename(){
+      return fileName;
+  }
 
   public void run() {
     while(true){
@@ -85,7 +95,7 @@ class EEGLoggingThread implements Runnable {
 
   }
 
-  public void onData(double[][] data){
+  public synchronized void onData(double[][] data){
     for(int datum = 0; datum < data[0].length; datum++){
       String outString = "";
       for(int channel = 0; channel < data.length; channel++){
@@ -101,10 +111,12 @@ class EEGLoggingThread implements Runnable {
         outString += data[channel][datum] + ",";
       }
       outString = outString + System.currentTimeMillis() + '\n';
+      finalData += outString;
       try{
         if(writer != null){
             writer.println(outString);
         }
+
       }
       catch(Exception e){
         System.out.println("Exception with writing to file: " + e);
@@ -112,6 +124,30 @@ class EEGLoggingThread implements Runnable {
 
     }
 
+    if(classify){
+      currentBuff++;
+      if(currentBuff != BUFFER_SIZE) return;
+
+      try{
+        recentClassify = python.classify(finalData);
+        currentBuff = 0;
+        finalData = "";
+      }
+      catch(Exception e){
+        System.out.println("Could not classify data: ");
+        e.printStackTrace();
+      }
+    }
+
+  }
+
+  public synchronized void beginClassify(PythonCommander python){
+    this.python = python;
+    this.classify = true;
+  }
+
+  public boolean getRecentClassify(){
+    return recentClassify;
   }
 
   public void init()

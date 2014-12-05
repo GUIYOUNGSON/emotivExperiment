@@ -44,6 +44,8 @@ public class AttentionExperiment extends WebSocketServer{
   String[][] epochImageFiles;
   ExperimentServer thisServer;
 
+  PythonCommander python;
+
   int currentEpoch;
   int currentTrial;
   Long timeOfResponse;
@@ -84,6 +86,8 @@ public class AttentionExperiment extends WebSocketServer{
 
     currentEpoch = 0;
     currentTrial = 0;
+
+    python = new PythonCommander();
   }
 
 
@@ -297,7 +301,14 @@ public void sendToAll( String text ) {
         trialNum++;
 
         /* Check to see if we're in the feedback phase, if so, edit ratio */
-        if(epochNum > TRAINING_EPOCHS)  thisRatio = Math.random();
+        if(epochNum > TRAINING_EPOCHS){
+          if(epochNum == TRAINING_EPOCHS + 1){
+            python.buildModel(logger.getFilename(), journal.getFilename());
+            logger.beginClassify(python);
+          }
+          thisRatio = logger.getRecentClassify() ? 1 : 0;
+          System.out.println("Classified data as " + thisRatio);
+        }
 
         if(trialNum < TRIALS_PER_EPOCH){
           journal.addTrial(thisRatio, epochImageFiles[epochNum][trialNum%2],
