@@ -27,6 +27,7 @@ public class EEGJournal{
     System.out.println("New EEG Journal, writing to file " + fileName);
     // write header data to file
     writer.println(header);
+    writer.println("-endheader-");
   }
 
   public EEGJournal(String outputDir, int participantNum) throws IOException{

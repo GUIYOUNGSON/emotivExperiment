@@ -15,7 +15,6 @@ class EEGLoggingThread implements Runnable {
   private int PUBLISH_PORT = 6789;
   // last channel is timestamp
   ArrayList<ArrayList<Double>> data;
-  ArrayList<Long> timestamps;
   DataOutputStream outToServer;
   DataInputStream inFromServer;
   private PrintWriter writer;
@@ -38,7 +37,6 @@ class EEGLoggingThread implements Runnable {
     for(int i = 0; i < NUM_CHANNELS; i++){
       data.add(i, new ArrayList<Double>());
     }
-    timestamps = new ArrayList<Long>();
     if(withTcp){
       System.out.println("Opened EEG data server on port " + PUBLISH_PORT);
       Socket clientSocket = new Socket("localhost", PUBLISH_PORT);
@@ -61,7 +59,7 @@ class EEGLoggingThread implements Runnable {
         if(!doAcquire){
           resumed.wait();
         }
-
+        //thisData[channel][datapoints in time]
         double[][] thisData = log.getEEG();
         long timestamp = System.currentTimeMillis();
         String outString = "";
@@ -69,9 +67,6 @@ class EEGLoggingThread implements Runnable {
           for(Double datum : thisData[i]){
             data.get(i).add(datum);
           }
-        }
-        for(int j = 0; j < thisData[0].length; j++){
-          timestamps.add(timestamp);
         }
 
 

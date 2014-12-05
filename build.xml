@@ -39,8 +39,8 @@
     </target>
 
     <target name="deldata" depends="">
-      <delete dir="testdata">
-      <mkdir dir="testdata">
+      <delete dir="testdata"/>
+      <mkdir dir="testdata"/>
     </target>
 
 
