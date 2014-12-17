@@ -37,13 +37,37 @@ function handleKeypress(key){
   }
 }
 
+// this is kind of complicated because by default, changing image attr
+// is asynchronous, and so most of the time the image is made visible
+// before it is loaded. hence the 'load' callback.
 function showPics(image1, image2, opacity2) {
   // Hide any text first
   $("#instructs").text("");
-  stimImage1.attr("src", image1);
-  stimImage2.attr("src", image2);
-  stimImage2.css("opacity", opacity2);
-  $("#image-holder").css('visibility', 'visible');
+  loaded1 = false;
+  loaded2 = false;
+  if(stimImage1.attr("src") == image1)  loaded1 = true;
+  if(stimImage2.attr("src") == image2)  loaded2 = true;
+  // This is actually a race condition (do we advance to the next
+  // image before the first image loads?), but should be a problem almost never
+  if(loaded1 && loaded2)  $("#image-holder").css('visibility', 'visible');
+  else{
+    stimImage1.attr("src", image1);
+    stimImage2.attr("src", image2);
+    stimImage2.css("opacity", opacity2);
+    if(!loaded1){
+      stimImage1.load(function(){
+        console.log("shit loaded")
+        $("#image-holder").css('visibility', 'visible');
+      });
+    }
+    else
+    {
+      stimImage2.load(function(){
+        $("#image-holder").css('visibility', 'visible');
+      });
+    }
+  }
+
 }
 
 /* Hide image, display instructions */
@@ -86,7 +110,14 @@ function startTrial(image1, image2, opacity2){
 }
 
 
+// Let all these functions be accessible from the debugger browser,
+// for easy debugging
 
+$.experimentServer = {
+  showPics: showPics,
+  showText: showText,
+  updateOpacity: updateOpacity
+}
 
 $(function () {
   // if user is running mozilla then use it's built-in WebSocket

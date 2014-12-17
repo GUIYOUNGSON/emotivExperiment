@@ -17,10 +17,10 @@ public class AttentionExperiment extends WebSocketServer{
   static String eegOutputFileName = "eegdata.csv";
   // see what megan does here...
   static boolean DEBUG = true;
-  static int NUM_EPOCHS = 5;
-  static int TRAINING_EPOCHS = 1;
+  static int TRAINING_EPOCHS = 4;
   static int FEEDBACK_EPOCHS = 0;
-  static int TRIALS_PER_EPOCH = 4;
+  static int TRIALS_PER_EPOCH = 3;
+  static int NUM_EPOCHS = TRAINING_EPOCHS + FEEDBACK_EPOCHS;
   static int NUM_IMAGES_PER_CATEGORY = 70;
   static int WEB_SOCKETS_PORT = 8885;
   /* in millis, how long is each trial? i.e. how long do they get to respond? */
@@ -275,7 +275,7 @@ public void sendToAll( String text ) {
       System.out.println("Adding first epoch to journal");
       journal.addEpoch(epochType(epochNum));
       inInstructs = true;
-      thisRatio = (epochType(epochNum).contains("places")) ? 0 : 1;
+      thisRatio = (epochType(epochNum).contains("places")) ? 1 : 0;
       // initializes logger, does not start acquisition
       if(withEEG){
         logger.init();
@@ -341,6 +341,7 @@ public void sendToAll( String text ) {
           epochNum++;
           if(epochNum >= NUM_EPOCHS){
             sendToAll("Done! Good Job!");
+            sendToAll("I, All Done, nice work!");
             System.out.println("Trying to close logger at " + System.currentTimeMillis());
             if(logger != null)  logger.close();
             System.out.println("trying to close journal at " + System.currentTimeMillis());
@@ -400,10 +401,6 @@ public void sendToAll( String text ) {
     }
 
     public String getTrialImagesCommand(int epochNum, int trialNum, double ratio){
-      if(epochImageFiles[epochNum][trialNum*2] == null){
-        System.out.println("Got null image at epoch " + epochNum + " trial " + trialNum);
-        return null;
-      }
       return "S," + epochImageFiles[epochNum][trialNum*2] + "," + epochImageFiles[epochNum][trialNum*2+1] +
       "," + ratio;
     }
