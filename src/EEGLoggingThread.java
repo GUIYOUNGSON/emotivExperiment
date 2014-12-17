@@ -64,10 +64,11 @@ class EEGLoggingThread implements Runnable {
       try {
         if(endAcquire){
           System.out.println("Thread exiting.");
+          lock.unlock();
           return;
         }
         if(!doAcquire){
-          resumed.wait();
+          resumed.await();
         }
         //thisData[channel][datapoints in time]
         double[][] thisData = log.getEEG();
@@ -78,8 +79,6 @@ class EEGLoggingThread implements Runnable {
             data.get(i).add(datum);
           }
         }
-
-
         onData(thisData);
 
       } catch (Exception e) {
@@ -87,15 +86,12 @@ class EEGLoggingThread implements Runnable {
         e.printStackTrace(System.out);
         return;
       }
-      finally{
-        lock.unlock();
-      }
-
+      lock.unlock();
     }
 
   }
 
-  public synchronized void onData(double[][] data){
+  public void onData(double[][] data) throws Exception{
     for(int datum = 0; datum < data[0].length; datum++){
       String outString = "";
       for(int channel = 0; channel < data.length; channel++){
@@ -134,14 +130,13 @@ class EEGLoggingThread implements Runnable {
         finalData = "";
       }
       catch(Exception e){
-        System.out.println("Could not classify data: ");
-        e.printStackTrace();
+        throw e;
       }
     }
 
   }
 
-  public synchronized void beginClassify(PythonCommander python){
+  public void beginClassify(PythonCommander python){
     this.python = python;
     this.classify = true;
   }
@@ -160,48 +155,19 @@ class EEGLoggingThread implements Runnable {
     }
   }
   public void pause(){
-    lock.lock();
     this.doAcquire = false;
-    lock.unlock();
   }
 
   public void close(){
-    writer.close();
-    lock.lock();
     this.endAcquire = true;
-    lock.unlock();
+    writer.close();
   }
 
   public void resume(){
     lock.lock();
     this.doAcquire = true;
     resumed.signal();
-    lock.unlock();
   }
 
-
-/* for testing */
-  public static void main(String[] args){
-    /*
-    EEGLoggingThread thisLog;
-    try{
-      EEGLog log = new EEGLog();
-      log.tryConnect();
-      log.addUser();
-      thisLog = new EEGLoggingThread(log,
-        "/Users/Dale/Dropbox/code/neuromancer/testdata/eegdata.csv", true);
-    }
-    catch(Exception e){
-      System.out.println(e);
-      e.printStackTrace();
-      return;
-    }
-
-
-    thisLog.init();
-    thisLog.resume();
-    */
-    return;
-  }
 
 }

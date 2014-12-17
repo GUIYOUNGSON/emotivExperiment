@@ -38,7 +38,6 @@ public class PythonCommander{
   }
 
   public boolean classify(String data){
-    System.out.println("Trying to classify " + data);
     return false;
   }
 

@@ -38,7 +38,7 @@ public class EEGJournal{
   public String getFilename(){
     return fileName;
   }
-  
+
   public synchronized void addEpoch(String epochType){
     thisEpoch = new Epoch(epochType, numEpochs);
     numEpochs++;
@@ -66,6 +66,7 @@ public class EEGJournal{
   }
 
   public synchronized void close(){
+    System.out.println("Closing journal");
     for(Epoch thisEpoch : epochQueue){
       writer.println("Epoch " + thisEpoch.epochNum + " Type: " + thisEpoch.epochType);
       for(Trial trial : thisEpoch.trialQueue){

@@ -18,8 +18,8 @@ public class AttentionExperiment extends WebSocketServer{
   // see what megan does here...
   static boolean DEBUG = true;
   static int NUM_EPOCHS = 5;
-  static int TRAINING_EPOCHS = 3;
-  static int FEEDBACK_EPOCHS = 2;
+  static int TRAINING_EPOCHS = 1;
+  static int FEEDBACK_EPOCHS = 0;
   static int TRIALS_PER_EPOCH = 4;
   static int NUM_IMAGES_PER_CATEGORY = 70;
   static int WEB_SOCKETS_PORT = 8885;
@@ -275,7 +275,7 @@ public void sendToAll( String text ) {
       System.out.println("Adding first epoch to journal");
       journal.addEpoch(epochType(epochNum));
       inInstructs = true;
-      thisRatio = 0.5;
+      thisRatio = (epochType(epochNum).contains("places")) ? 0 : 1;
       // initializes logger, does not start acquisition
       if(withEEG){
         logger.init();
@@ -301,13 +301,20 @@ public void sendToAll( String text ) {
         trialNum++;
 
         /* Check to see if we're in the feedback phase, if so, edit ratio */
-        if(epochNum > TRAINING_EPOCHS){
-          if(epochNum == TRAINING_EPOCHS + 1){
-            python.buildModel(logger.getFilename(), journal.getFilename());
+        if(epochNum >= TRAINING_EPOCHS){
+          if(epochNum == TRAINING_EPOCHS &&  FEEDBACK_EPOCHS > 0){
+            try{
+              python.buildModel(logger.getFilename(), journal.getFilename());
+            }
+            catch(Exception e){
+              System.out.println("Could not build model!");
+              System.exit(-1);
+            }
+
             logger.beginClassify(python);
           }
-          thisRatio = logger.getRecentClassify() ? 1 : 0;
-          System.out.println("Classified data as " + thisRatio);
+          //thisRatio = logger.getRecentClassify() ? 1 : 0;
+          System.out.println("Classified data as " + logger.getRecentClassify());
         }
 
         if(trialNum < TRIALS_PER_EPOCH){
@@ -334,11 +341,15 @@ public void sendToAll( String text ) {
           epochNum++;
           if(epochNum >= NUM_EPOCHS){
             sendToAll("Done! Good Job!");
+            System.out.println("Trying to close logger at " + System.currentTimeMillis());
             if(logger != null)  logger.close();
+            System.out.println("trying to close journal at " + System.currentTimeMillis());
             if(journal != null) journal.close();
+            System.out.println("exiting at " + System.currentTimeMillis());
             System.exit(0);
           }
           journal.addEpoch(epochType(epochNum));
+          thisRatio = (epochType(epochNum).contains("places")) ? 0 : 1;
           trialNum = 0;
         }
       }

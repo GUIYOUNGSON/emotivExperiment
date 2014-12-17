@@ -42,7 +42,7 @@ function showPics(image1, image2, opacity2) {
   $("#instructs").text("");
   stimImage1.attr("src", image1);
   stimImage2.attr("src", image2);
-  stimImage2.attr("opacity", opacity2);
+  stimImage2.css("opacity", opacity2);
   $("#image-holder").css('visibility', 'visible');
 }
 
