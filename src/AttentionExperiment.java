@@ -329,12 +329,16 @@ public void sendToAll( String text ) {
           timeOfResponse = null;
           responseTime = null;
           // Use 50% ratio
+          thisRatio = epochNum%2 == 0 ? 0 : 1;
           sendToAll(getTrialImagesCommand(epochNum, trialNum, thisRatio));
           stimOnset = System.currentTimeMillis();
           timer.schedule(new doNextLater(), RESPONSE_TIME);
         }
         // Otherwise, go to next epoch
         else{
+          epochNum++;
+          System.out.println("In epoch " + epochNum);
+          // Show the next instruction
           sendToAll(getInstructionCommand(epochNum));
           inInstructs = true;
           if(timeOfResponse != null){
@@ -343,8 +347,6 @@ public void sendToAll( String text ) {
           else{
             journal.endTrial(stimOnset);
           }
-          // Show the next instruction
-          epochNum++;
           if(epochNum >= NUM_EPOCHS){
             sendToAll("Done! Good Job!");
             sendToAll("I, All Done, nice work!");
@@ -357,7 +359,6 @@ public void sendToAll( String text ) {
             System.exit(0);
           }
           journal.addEpoch(epochType(epochNum));
-          thisRatio = (epochType(epochNum).contains("places")) ? 0 : 1;
           trialNum = 0;
         }
       }
@@ -369,6 +370,7 @@ public void sendToAll( String text ) {
         timeOfResponse = null;
         responseTime = null;
         stimOnset = System.currentTimeMillis();
+        thisRatio = epochNum%2 == 0 ? 0 : 1;
         sendToAll(getTrialImagesCommand(epochNum, trialNum, thisRatio));
         timer.schedule(new doNextLater(), RESPONSE_TIME);
       }

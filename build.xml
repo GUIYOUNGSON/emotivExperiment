@@ -53,8 +53,8 @@
             <path location="emotiv/build"/>
             <path location="emotiv/lib/jna.jar"/>
           </classpath>
-          <arg value="8"/>
-          <arg value="testdata"/>
+          <arg value="102"/>
+          <arg value="realdata"/>
           <arg value="1"/>
           <arg value="0"/>
           <!--

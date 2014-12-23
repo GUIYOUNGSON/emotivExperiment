@@ -70,12 +70,9 @@ class EEGLoggingThread implements Runnable {
 
     while(true){
       if(doQuit){
-        System.out.println("Signaling finished collection");
         readyQuit.release();
-        System.out.println("About to return from infinite loop");
         return;
       }
-      System.out.println("Acquired lock");
       try {
         //thisData[channel][datapoints in time]
         double[][] thisData = log.getEEG();
@@ -164,14 +161,12 @@ class EEGLoggingThread implements Runnable {
   public void close(){
     doQuit = true;
     try{
-      System.out.println("Awaiting signal in close");
       readyQuit.acquire();
     }
     catch(InterruptedException e){
       System.out.println("Got interrupted " + e);
     }
     writer.close();
-    System.out.println("Returning from close");
     return;
   }
 
