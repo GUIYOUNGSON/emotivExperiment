@@ -17,9 +17,9 @@ public class AttentionExperiment extends WebSocketServer{
   static String eegOutputFileName = "eegdata.csv";
   // see what megan does here...
   static boolean DEBUG = true;
-  static int TRAINING_EPOCHS = 4;
+  static int TRAINING_EPOCHS = 6;
   static int FEEDBACK_EPOCHS = 0;
-  static int TRIALS_PER_EPOCH = 3;
+  static int TRIALS_PER_EPOCH = 10;
   static int NUM_EPOCHS = TRAINING_EPOCHS + FEEDBACK_EPOCHS;
   static int NUM_IMAGES_PER_CATEGORY = 70;
   static int WEB_SOCKETS_PORT = 8885;
@@ -31,6 +31,7 @@ public class AttentionExperiment extends WebSocketServer{
   static String OUTDOOR_PLACES ="./imagesRenamed/outdoor/";
   static String INDOOR_PLACES ="./imagesRenamed/indoor/";
 
+  volatile boolean done = false;
   boolean feedback;
   boolean withEEG;
   boolean tcpPublish;
@@ -105,9 +106,12 @@ public void onMessage( WebSocket conn, String message ) {
       dfa.doNext(false);
     }
     else if(message.charAt(0) == 'Q' && message.charAt(1) == 'q'){
+      done = true;
       System.out.println("Quitting ... goodbye!");
       if(logger != null)  logger.close();
+      System.out.println("Closed logger");
       if(journal != null) journal.close();
+      System.out.println("Closed journal");
       System.exit(0);
     }
 }
@@ -140,6 +144,7 @@ public void onError(WebSocket conn, Exception e){
 @Override
 public void onClose( WebSocket conn, int code, String reason, boolean remote ){
   System.out.println(conn + " has disconnected");
+  done = true;
   if(logger != null)  logger.close();
   journal.close();
   return;
@@ -280,11 +285,12 @@ public void sendToAll( String text ) {
       if(withEEG){
         logger.init();
         System.out.println("Beginning to log EEG data!");
-        logger.resume();
+        logger.start();
       }
     }
 
     public synchronized void doNext(boolean fromTimer){
+      if(done)  return;
       // can only get here not from timer if we're in instructs
       if(!fromTimer && !inInstructs) return;
       if(!inInstructs){
@@ -342,6 +348,7 @@ public void sendToAll( String text ) {
           if(epochNum >= NUM_EPOCHS){
             sendToAll("Done! Good Job!");
             sendToAll("I, All Done, nice work!");
+            done = true;
             System.out.println("Trying to close logger at " + System.currentTimeMillis());
             if(logger != null)  logger.close();
             System.out.println("trying to close journal at " + System.currentTimeMillis());

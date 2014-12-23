@@ -1,5 +1,5 @@
 import java.util.*;
-import java.util.concurrent.locks.*;
+import java.util.concurrent.Semaphore;
 import java.io.*;
 import java.net.*;
 import java.text.*;
@@ -10,7 +10,7 @@ class EEGLoggingThread implements Runnable {
   private EEGLog log;
   private boolean withTcp;
   private volatile boolean doAcquire = false;
-  private volatile boolean endAcquire = false;
+  private volatile boolean doQuit = false;
   private int NUM_CHANNELS = 25;//14;
   private int PUBLISH_PORT = 6789;
   // last channel is timestamp
@@ -27,13 +27,14 @@ class EEGLoggingThread implements Runnable {
   private int currentBuff = 0;
   private String finalData;
 
-  final Lock lock = new ReentrantLock();
-  final Condition resumed = lock.newCondition();
+  private final Semaphore resumed = new Semaphore(1);
+  private final Semaphore readyQuit = new Semaphore(1);
 
   public EEGLoggingThread(EEGLog log, String outputDir, int participantNum, boolean withTcp) throws Exception{
+    resumed.acquire();
     if(withTcp){
-      System.out.println("TCP is not yet supported");
-      withTcp = false;
+      //System.out.println("TCP is not yet supported");
+      withTcp = true;
     }
     SimpleDateFormat ft = new SimpleDateFormat("yyyy.MM.dd.hh.mm");
     fileName = outputDir + "/eeg_" + participantNum + "_" + ft.format(new Date());
@@ -59,17 +60,23 @@ class EEGLoggingThread implements Runnable {
   }
 
   public void run() {
+    try{
+      readyQuit.acquire();
+      resumed.acquire();
+    }
+    catch(InterruptedException e){
+      // do nothing
+    }
+
     while(true){
-      lock.lock();
+      if(doQuit){
+        System.out.println("Signaling finished collection");
+        readyQuit.release();
+        System.out.println("About to return from infinite loop");
+        return;
+      }
+      System.out.println("Acquired lock");
       try {
-        if(endAcquire){
-          System.out.println("Thread exiting.");
-          lock.unlock();
-          return;
-        }
-        if(!doAcquire){
-          resumed.await();
-        }
         //thisData[channel][datapoints in time]
         double[][] thisData = log.getEEG();
         long timestamp = System.currentTimeMillis();
@@ -80,13 +87,12 @@ class EEGLoggingThread implements Runnable {
           }
         }
         onData(thisData);
-
-      } catch (Exception e) {
+      }
+      catch (Exception e) {
         System.out.println("Exception in EEGLogging thread: " + e);
         e.printStackTrace(System.out);
         return;
       }
-      lock.unlock();
     }
 
   }
@@ -95,14 +101,6 @@ class EEGLoggingThread implements Runnable {
     for(int datum = 0; datum < data[0].length; datum++){
       String outString = "";
       for(int channel = 0; channel < data.length; channel++){
-        if(withTcp){
-          try{
-            outToServer.writeDouble(data[channel][datum]);
-          }
-          catch(Exception e){
-            System.out.println("Couldn't send data to server: " + e);
-          }
-        }
 
         outString += data[channel][datum] + ",";
       }
@@ -116,6 +114,14 @@ class EEGLoggingThread implements Runnable {
       }
       catch(Exception e){
         System.out.println("Exception with writing to file: " + e);
+      }
+      if(withTcp){
+        try{
+          outToServer.writeChars(outString);
+        }
+        catch(Exception e){
+          System.out.println("Couldn't send data to server: " + e);
+        }
       }
 
     }
@@ -154,20 +160,25 @@ class EEGLoggingThread implements Runnable {
       t.start();
     }
   }
-  public void pause(){
-    this.doAcquire = false;
-  }
 
   public void close(){
-    this.endAcquire = true;
+    doQuit = true;
+    try{
+      System.out.println("Awaiting signal in close");
+      readyQuit.acquire();
+    }
+    catch(InterruptedException e){
+      System.out.println("Got interrupted " + e);
+    }
     writer.close();
+    System.out.println("Returning from close");
+    return;
   }
 
-  public void resume(){
-    lock.lock();
-    this.doAcquire = true;
-    resumed.signal();
+  public void start(){
+    resumed.release();
   }
+
 
 
 }

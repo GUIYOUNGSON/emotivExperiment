@@ -19,14 +19,17 @@ s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 s.bind((host, port))
 s.listen(backlog)
 
+dataBuffer = ""
 while 1:
     if not client:
-        print "Got Client"
         client, address = s.accept()
+        print "Got Client"
     data = client.recv(size)
     if data:
-        print "From client: "
-        print data
+        dataBuffer = dataBuffer + data
+    if data[-1] == '\n':
+        print dataBuffer
+        dataBuffer = ""
 '''
 def sendData():
     if killThread:
