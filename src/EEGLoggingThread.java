@@ -7,12 +7,16 @@ import java.text.*;
 class EEGLoggingThread implements Runnable {
 
   private Thread t;
+  // EEG log controls the emotiv headset
   private EEGLog log;
+  // Send data to tcp server?
   private boolean withTcp;
   private volatile boolean doAcquire = false;
   private volatile boolean doQuit = false;
+
   private int NUM_CHANNELS = 25;//14;
   private int PUBLISH_PORT = 6789;
+
   // last channel is timestamp
   ArrayList<ArrayList<Double>> data;
   DataOutputStream outToServer;
@@ -32,10 +36,6 @@ class EEGLoggingThread implements Runnable {
 
   public EEGLoggingThread(EEGLog log, String outputDir, int participantNum, boolean withTcp) throws Exception{
     resumed.acquire();
-    if(withTcp){
-      //System.out.println("TCP is not yet supported");
-      withTcp = true;
-    }
     SimpleDateFormat ft = new SimpleDateFormat("yyyy.MM.dd.hh.mm");
     fileName = outputDir + "/eeg_" + participantNum + "_" + ft.format(new Date());
     System.out.println("In logging thread, beginning data acquisition to file " + fileName);
@@ -161,6 +161,7 @@ class EEGLoggingThread implements Runnable {
   public void close(){
     doQuit = true;
     try{
+      System.out.println("Waiting to acquire ready quit");
       readyQuit.acquire();
     }
     catch(InterruptedException e){
@@ -174,6 +175,42 @@ class EEGLoggingThread implements Runnable {
     resumed.release();
   }
 
+  /* Main thread for testing */
+  public static void main(String[] args){
+
+    final EEGLoggingThread logger;
+    EEGLog emotiv = new EEGLog();
+    String outdir = "performance_tests";
+    if(args.length < 1){
+      System.out.println("Usage: num_seconds");
+      return;
+    }
+    for(String in : args){
+      System.out.println("Arg is " + in);
+    }
+    int num_secs = Integer.parseInt(args[0]);
+
+    try{
+      logger = new EEGLoggingThread(emotiv, outdir, 0, false);
+    }
+    catch(Exception e){
+      e.printStackTrace();
+      return;
+    }
+
+    logger.init();
+
+    Timer t = new Timer();
+    System.out.println("Beginning collection at time " + System.currentTimeMillis());
+    t.schedule(new TimerTask(){
+      public void run(){
+        System.out.println("Closing logger");
+        logger.close();
+        System.out.println("Done at time " + System.currentTimeMillis());
+        System.exit(0);
+      }
+    }, num_secs);
+  }
 
 
 }

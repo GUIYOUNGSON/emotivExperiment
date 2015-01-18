@@ -33,6 +33,18 @@
 			</java>
 		</target>
 
+    <target name ="eegloggingthread" depends="emotiv">
+      <java fork="true" classname="EEGLoggingThread">
+        <classpath>
+          <path location="build"/>
+          <path location="src/java_websocket.jar"/>
+          <path location="emotiv/build"/>
+          <path location="emotiv/lib/jna.jar"/>
+        </classpath>
+        <arg value="1000"/>
+      </java>
+    </target>
+
     <target name="compile" depends="emotiv">
 				<mkdir dir="build"/>
         <javac srcdir="src" destdir="build" classpathref="classpath" debug="on"/>
