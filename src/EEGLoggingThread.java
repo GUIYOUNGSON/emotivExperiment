@@ -81,8 +81,6 @@ class EEGLoggingThread implements Runnable {
       try {
         //thisData[channel][datapoints in time]
         double[][] thisData = log.getEEG();
-        long timestamp = System.currentTimeMillis();
-        String outString = "";
         for(int i = 0; i < thisData.length; i++){
           for(Double datum : thisData[i]){
             data.get(i).add(datum);
@@ -98,24 +96,7 @@ class EEGLoggingThread implements Runnable {
     }
 
   }
-/*
-  public void onData(double[][]data){
-    long timeStamp = System.currentTimeMillis();
-    for(double da : data[0]){
-      System.out.println(timeStamp + ", " + (int)da));
-    }
-    long timeStamp = System.currentTimeMillis();
-    for(int datum = 0; datum < data[0].length; datum++){
-      String outString = "";
-      for(int channel = 0; channel < data.length; channel++){
-        if(channel == 0)  System.out.println(timeStamp + ", " + )
-        outString += data[channel][datum] + ",";
-      }
-      outString = outString + System.currentTimeMillis() + '\n';
-      finalData += outString;
-  }
-}
-*/
+
   /* When we get data, do this. Currently, save data to file and write to server
   if TCP is enabled */
 
@@ -124,26 +105,12 @@ class EEGLoggingThread implements Runnable {
     long now;
     String outString = "dale";
     for(int datum = 0; datum < data[0].length; datum++){
-      System.out.println(timeStamp + "," + data[0][datum]);
-      /*
-      String outString = "";
-
-      for(int channel = 0; channel < data.length; channel++){
-        outString += data[channel][datum] + ",";
-      }
-
-
-      outString = outString + timeStamp + '\n';
-      finalData += outString;
-      */
       try{
         if(writer != null){
-          for(double[] dat : data){
-            for(double d : dat){
-              writer.println(d);
-            }
+          for(int channel = 0; channel < data.length; channel++){
+            writer.print(data[channel][datum] + ",");
           }
-            //writer.println(outString);
+            writer.println(timeStamp);
         }
 
       }
