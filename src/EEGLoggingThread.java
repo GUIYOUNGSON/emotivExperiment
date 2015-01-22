@@ -53,6 +53,10 @@ class EEGLoggingThread implements Runnable {
     File file = new File(fileName);
     writer = new PrintWriter(file);
     this.classify = false;
+
+    // Start thread (but do not start collection. Waiting on resume semaphore)
+    t = new Thread (this, "logger");
+    t.start();
   }
 
   public String getFilename(){
@@ -60,6 +64,7 @@ class EEGLoggingThread implements Runnable {
   }
 
   public void run() {
+    System.out.println("In logging thread");
     try{
       readyQuit.acquire();
       resumed.acquire();
@@ -93,19 +98,52 @@ class EEGLoggingThread implements Runnable {
     }
 
   }
-
-  public void onData(double[][] data) throws Exception{
+/*
+  public void onData(double[][]data){
+    long timeStamp = System.currentTimeMillis();
+    for(double da : data[0]){
+      System.out.println(timeStamp + ", " + (int)da));
+    }
+    long timeStamp = System.currentTimeMillis();
     for(int datum = 0; datum < data[0].length; datum++){
       String outString = "";
       for(int channel = 0; channel < data.length; channel++){
-
+        if(channel == 0)  System.out.println(timeStamp + ", " + )
         outString += data[channel][datum] + ",";
       }
       outString = outString + System.currentTimeMillis() + '\n';
       finalData += outString;
+  }
+}
+*/
+  /* When we get data, do this. Currently, save data to file and write to server
+  if TCP is enabled */
+
+  public void onData(double[][] data) throws Exception{
+    long timeStamp = System.currentTimeMillis();
+    long now;
+    String outString = "dale";
+    for(int datum = 0; datum < data[0].length; datum++){
+      System.out.println(timeStamp + "," + data[0][datum]);
+      /*
+      String outString = "";
+
+      for(int channel = 0; channel < data.length; channel++){
+        outString += data[channel][datum] + ",";
+      }
+
+
+      outString = outString + timeStamp + '\n';
+      finalData += outString;
+      */
       try{
         if(writer != null){
-            writer.println(outString);
+          for(double[] dat : data){
+            for(double d : dat){
+              writer.println(d);
+            }
+          }
+            //writer.println(outString);
         }
 
       }
@@ -136,9 +174,9 @@ class EEGLoggingThread implements Runnable {
         throw e;
       }
     }
-
   }
 
+  /* Begin classification with python */
   public void beginClassify(PythonCommander python){
     this.python = python;
     this.classify = true;
@@ -148,15 +186,6 @@ class EEGLoggingThread implements Runnable {
     return recentClassify;
   }
 
-  public void init()
-  {
-    System.out.println("Beginning data acquisition in thread start");
-    if (t == null)
-    {
-      t = new Thread (this, "logger");
-      t.start();
-    }
-  }
 
   public void close(){
     doQuit = true;
@@ -179,7 +208,20 @@ class EEGLoggingThread implements Runnable {
   public static void main(String[] args){
 
     final EEGLoggingThread logger;
-    EEGLog emotiv = new EEGLog();
+    EEGLog emotiv;
+    try{
+      emotiv = new EEGLog();
+      emotiv.tryConnect();
+      System.out.println("Successfully connected to emotiv");
+      emotiv.addUser();
+      System.out.println("Successfully added user. Starting logging thread");
+    }
+    catch(Exception e){
+      e.printStackTrace();
+      return;
+    }
+
+
     String outdir = "performance_tests";
     if(args.length < 1){
       System.out.println("Usage: num_seconds");
@@ -198,7 +240,7 @@ class EEGLoggingThread implements Runnable {
       return;
     }
 
-    logger.init();
+    logger.start();
 
     Timer t = new Timer();
     System.out.println("Beginning collection at time " + System.currentTimeMillis());

@@ -283,7 +283,6 @@ public void sendToAll( String text ) {
       thisRatio = (epochType(epochNum).contains("places")) ? 1 : 0;
       // initializes logger, does not start acquisition
       if(withEEG){
-        logger.init();
         System.out.println("Beginning to log EEG data!");
         logger.start();
       }
