@@ -30,7 +30,8 @@ public class AttentionExperiment extends WebSocketServer{
   static String FEMALE_FACES ="./imagesRenamed/female_neut/";
   static String OUTDOOR_PLACES ="./imagesRenamed/outdoor/";
   static String INDOOR_PLACES ="./imagesRenamed/indoor/";
-
+  static boolean FACES = true;
+  static boolean PLACES = false;
   volatile boolean done = false;
   boolean feedback;
   boolean withEEG;
@@ -43,6 +44,8 @@ public class AttentionExperiment extends WebSocketServer{
   int participantNum;
   boolean[] epochArray;
   String[][] epochImageFiles;
+  boolean[][] answers;
+  boolean[] trialType;
   ExperimentServer thisServer;
 
   PythonCommander python;
@@ -77,7 +80,8 @@ public class AttentionExperiment extends WebSocketServer{
     // Start timer to schedule recurring trials
     timer = new Timer();
     // Generate a unique epoch array (random) for this participant
-    // TODO: by participant, whether should click yes or no for face/place
+    // If epochArray[0] is true, click yes for male faces. If epochArray[1]
+    // is true, click yes for outdoor places.
     epochArray = getEpochArray(participantNum);
     // generate the list of image files corresponding to this epoch array
     epochImageFiles = getEpochImages();
@@ -189,6 +193,10 @@ public void sendToAll( String text ) {
   /* Returns a vector, [clickFemale, clickIndoor],
   where clickFemale is true if array[0] = true */
   private boolean[] getEpochArray(int participantNum){
+
+    // two tasks array determines which stimulu (male, outdoors, ex)
+    // this participant should click for
+
     boolean[] twoTasks = new boolean[2];
     switch(participantNum % 4){
       case(1):
@@ -205,8 +213,20 @@ public void sendToAll( String text ) {
         twoTasks[1] = true;
     }
 
+    // trial order is chosen such that the average time of each task is the
+    // same: AABBAABBA
+    trialOrder = new boolean[NUM_EPOCHS];
+    boolean startCategory = Math.random() > 0.5 ? FACES : PLACES;
+    int i = 0;
+    while(i < NUM_EPOCHS){
+      trialOrder[i++] = startCategory;
+      if(NUM_EPOCHS > i)  trialOrder[i++] = !startCategory;
+      if(NUM_EPOCHS > i)  trialOrder[i++] = !startCategory;
+      if(NUM_EPOCHS > i)  trialOrder[i++] = startCategory;
+    }
     return twoTasks;
   }
+
 
   private Queue<Integer> newRandomInts(int length){
     LinkedList<Integer> list = new LinkedList<Integer>();
@@ -218,14 +238,20 @@ public void sendToAll( String text ) {
     return queue;
   }
 
-  /* Returns an array filenames specifying images to be shown in each trial*/
-  private String[][] getEpochImages(){
+  /* Returns an array filenames specifying images to be shown in each trial.
+     Tease ratio is the ratio of images that come from the lure category */
+
+  private String[][] getEpochImages(int tease_ratio){
     String[][] epochImages = new String[NUM_EPOCHS][];
+    boolean[][] answers = new boolean[NUM_EPOCHS][TRIALS_PER_EPOCH];
     // randomly choose faces and places
     Queue<Integer> male = newRandomInts(NUM_IMAGES_PER_CATEGORY);
     Queue<Integer> female = newRandomInts(NUM_IMAGES_PER_CATEGORY);
     Queue<Integer> outdoor = newRandomInts(NUM_IMAGES_PER_CATEGORY);
     Queue<Integer> indoor = newRandomInts(NUM_IMAGES_PER_CATEGORY);
+
+    double male_ratio = epochArray[0] ? tease_ratio : 1 - tease_ratio;
+    double outdoor_ratio = epochArray[1] ? tease_ratio : 1 - tease_ratio;
 
     for(int i = 0; i < NUM_EPOCHS; i++){
       // two images for every trial. This is hardcoded. need to fix
@@ -243,17 +269,21 @@ public void sendToAll( String text ) {
         if(indoor.isEmpty()){
           indoor = newRandomInts(NUM_IMAGES_PER_CATEGORY);
         }
-        if(Math.random() > 0.5){
+        if(Math.random() > male_ratio){
           thisEpochImages[j*2] = MALE_FACES + male.remove() + ".jpg";
+          if(trialOrder[i] == FACES)  answers[i][j] = epochArray[0] ? true : false;
         }
         else{
           thisEpochImages[j*2] = FEMALE_FACES + female.remove() + ".jpg";
+          if(trialOrder[i] == FACES)  answers[i][j] = epochArray[0] ? false : true;
         }
-        if(Math.random() > 0.5){
+        if(Math.random() > outdoor_ratio){
           thisEpochImages[j*2+1] = OUTDOOR_PLACES + outdoor.remove() + ".jpg";
+          if(trialOrder[i] == PLACES)  answers[i][j] = epochArray[1] ? true : false;
         }
         else{
           thisEpochImages[j*2+1] = INDOOR_PLACES + indoor.remove() + ".jpg";
+          if(trialOrder[i] == PLACES)  answers[i][j] = epochArray[1] ? false : true;
         }
       }
       epochImages[i] = thisEpochImages;
@@ -295,11 +325,12 @@ public void sendToAll( String text ) {
       if(!inInstructs){
 
         /* Log this response */
+        boolean shouldClick = answer[epochNum][trialNum];
         if(timeOfResponse != null){
-            journal.endTrial(stimOnset, timeOfResponse, responseTime);
+            journal.endTrial(stimOnset, timeOfResponse, responseTime, shouldClick);
         }
         else{
-          journal.endTrial(stimOnset);
+          journal.endTrial(stimOnset, !shouldClick);
         }
 
         /* Increment the number of this trial */
@@ -395,16 +426,19 @@ public void sendToAll( String text ) {
     }
 
     public String getInstructionCommand(int epochNum){
-      String instruct = "I,Click when the ";
-      if(epochNum%2 == 0){
-        instruct += "face you see is ";
+      String instruct;
+      if(trialOrder[epochNum] == FACES){
+        instruct = "I, Click when the shown face is ";
         instruct += (epochArray[0]) ? "female" : "male";
+        instruct += ". Do not click when shown the face is ";
+        instruct += (epochArray[0]) ? "male" : "female";
       }
       else{
-        instruct += "place you see is ";
-        instruct += (epochArray[0]) ? "indoors" : "outdoors";
+        instruct = "I, Click when the shown place is ";
+        instruct += (epochArray[1]) ? "outdoors" : "indoors";
+        instruct += ". Do not click when shown the place is ";
+        instruct += (epochArray[1]) ? "indoors" : "outdoors";
       }
-
       return instruct;
     }
 

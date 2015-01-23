@@ -7,6 +7,7 @@ public class EEGJournal{
 
   private static boolean DEBUG = true;
   private int participantNum;
+  private int trialLength;
   private String fileName;
   private PrintWriter writer;
   private Queue<Epoch> epochQueue;
@@ -15,7 +16,8 @@ public class EEGJournal{
 
   static String[] channels = EEGLog.channels;
 
-  public EEGJournal(String outputDir, int participantNum, String header) throws IOException{
+  public EEGJournal(String outputDir, int participantNum, String header, int trialLength) throws IOException{
+    this.trialLength = trialLength;
     SimpleDateFormat ft = new SimpleDateFormat("yyyy.MM.dd.hh.mm");
     fileName = outputDir + "/journal_" + participantNum + "_" + ft.format(new Date());
     this.participantNum = participantNum;
@@ -53,16 +55,16 @@ public class EEGJournal{
   }
 
   /* End trial (with response times)*/
-  public synchronized void endTrial(long timeImageOnset, long timeOfResponse, long responseTime){
+  public synchronized void endTrial(long timeImageOnset, long timeOfResponse, long responseTime, boolean correct){
     if(DEBUG) System.out.println(thisEpoch.thisTrial);
-    thisEpoch.endTrial(timeImageOnset, timeOfResponse, responseTime);
+    thisEpoch.endTrial(timeImageOnset, timeOfResponse, responseTime, correct);
     //writer.println(thisEpoch.thisTrial);
   }
 
   // End trial (without response)
-  public synchronized void endTrial(long timeImageOnset){
+  public synchronized void endTrial(long timeImageOnset, boolean correct){
     if(DEBUG) System.out.println(thisEpoch.thisTrial);
-    thisEpoch.endTrial(timeImageOnset, -1, -1);
+    thisEpoch.endTrial(timeImageOnset, -1, -1, correct);
   }
 
   public synchronized void close(){
@@ -101,10 +103,12 @@ public class EEGJournal{
     }
 
     // Set image onset details, response times, etc.
-    public void endTrial(long timeImageOnset, long timeOfResponse, long responseTime){
+    public void endTrial(long timeImageOnset, long timeOfResponse, long responseTime, boolean correct){
       thisTrial.stimulusOnset = timeImageOnset;
       thisTrial.timeOfResponse = timeOfResponse;
       thisTrial.responseTime = responseTime;
+      thisTrial.correct = correct;
+      thisTrial.stimulusOffset = timeImageOnset + trialLength;
 
     }
 
@@ -112,10 +116,12 @@ public class EEGJournal{
 
   public class Trial{
     int trialNum;
+    boolean correct;
     double ratio;
     long stimulusOnset;
     long timeOfResponse;
     long responseTime;
+    long stimulusOffset;
     String im1;
     String im2;
 
@@ -129,8 +135,8 @@ public class EEGJournal{
 
     public String toString(){
       return "Trial:" + trialNum + ",ImageRatio:" + ratio +
-        ",StimOnset:" + stimulusOnset + ",TimeOfResponse:" + timeOfResponse +
-        ",ResponseTime:" + responseTime;
+        ",StimOnset:" + stimulusOnset + + ",StimOffset:" + stimulusOffset + ",TimeOfResponse:" + timeOfResponse +
+        ",ResponseTime:" + responseTime + ",Correct:" + correct;
     }
 
   }
