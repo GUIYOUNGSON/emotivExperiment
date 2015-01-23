@@ -32,8 +32,8 @@ public class EEGJournal{
     writer.println("-endheader-");
   }
 
-  public EEGJournal(String outputDir, int participantNum) throws IOException{
-    this(outputDir, participantNum,  "Participant " + participantNum + ", Date: " + new Date());
+  public EEGJournal(String outputDir, int participantNum, int trialLength) throws IOException{
+    this(outputDir, participantNum,  "Participant " + participantNum + ", Date: " + new Date(), trialLength);
   }
 
 
@@ -56,14 +56,11 @@ public class EEGJournal{
 
   /* End trial (with response times)*/
   public synchronized void endTrial(long timeImageOnset, long timeOfResponse, long responseTime, boolean correct){
-    if(DEBUG) System.out.println(thisEpoch.thisTrial);
     thisEpoch.endTrial(timeImageOnset, timeOfResponse, responseTime, correct);
-    //writer.println(thisEpoch.thisTrial);
   }
 
   // End trial (without response)
   public synchronized void endTrial(long timeImageOnset, boolean correct){
-    if(DEBUG) System.out.println(thisEpoch.thisTrial);
     thisEpoch.endTrial(timeImageOnset, -1, -1, correct);
   }
 
@@ -109,6 +106,7 @@ public class EEGJournal{
       thisTrial.responseTime = responseTime;
       thisTrial.correct = correct;
       thisTrial.stimulusOffset = timeImageOnset + trialLength;
+      if(DEBUG) System.out.println(thisEpoch.thisTrial);
 
     }
 
@@ -135,7 +133,7 @@ public class EEGJournal{
 
     public String toString(){
       return "Trial:" + trialNum + ",ImageRatio:" + ratio +
-        ",StimOnset:" + stimulusOnset + + ",StimOffset:" + stimulusOffset + ",TimeOfResponse:" + timeOfResponse +
+        ",StimOnset:" + stimulusOnset + ",StimOffset:" + stimulusOffset + ",TimeOfResponse:" + timeOfResponse +
         ",ResponseTime:" + responseTime + ",Correct:" + correct;
     }
 

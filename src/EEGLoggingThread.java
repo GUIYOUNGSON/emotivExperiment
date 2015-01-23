@@ -16,6 +16,7 @@ class EEGLoggingThread implements Runnable {
 
   private int NUM_CHANNELS = 25;//14;
   private int PUBLISH_PORT = 6789;
+  private static int pointPeriod = 60*1000/128;
 
   // last channel is timestamp
   ArrayList<ArrayList<Double>> data;
@@ -104,13 +105,15 @@ class EEGLoggingThread implements Runnable {
     long timeStamp = System.currentTimeMillis();
     long now;
     String outString = "dale";
-    for(int datum = 0; datum < data[0].length; datum++){
+    int num_points = data[0].length;
+    for(int datum = 0; datum < num_points; datum++){
       try{
         if(writer != null){
           for(int channel = 0; channel < data.length; channel++){
             writer.print(data[channel][datum] + ",");
           }
-            writer.println(timeStamp);
+            // space the points out given the priod (128 samples per second)
+            writer.println(timeStamp + (num_points - 1 - datum) * pointPeriod);
         }
 
       }
