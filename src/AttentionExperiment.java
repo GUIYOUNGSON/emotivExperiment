@@ -17,15 +17,15 @@ public class AttentionExperiment extends WebSocketServer{
   static String eegOutputFileName = "eegdata.csv";
   // see what megan does here...
   static boolean DEBUG = true;
-  static int TRAINING_EPOCHS = 6;
+  static int TRAINING_EPOCHS = 8;
   static int FEEDBACK_EPOCHS = 0;
-  static int TRIALS_PER_EPOCH = 1;
+  static int TRIALS_PER_EPOCH = 50;
   static int NUM_EPOCHS = TRAINING_EPOCHS + FEEDBACK_EPOCHS;
   static int NUM_IMAGES_PER_CATEGORY = 70;
   static int WEB_SOCKETS_PORT = 8885;
   /* in millis, how long is each trial? i.e. how long do they get to respond? */
   static int RESPONSE_TIME = 100*10;
-  static double TEASE_RATIO = .8;
+  static double TEASE_RATIO = .1;
   /* image directories. please name them 1,2,3,...n.jpg */
   static String MALE_FACES ="./imagesRenamed/male_neut/";
   static String FEMALE_FACES ="./imagesRenamed/female_neut/";
@@ -48,6 +48,7 @@ public class AttentionExperiment extends WebSocketServer{
   boolean[][] answers;
   boolean[] trialType;
   ExperimentServer thisServer;
+  private boolean hasStarted;
 
   PythonCommander python;
 
@@ -68,6 +69,7 @@ public class AttentionExperiment extends WebSocketServer{
     this.feedback = realFeedback;
     this.withEEG = withEEG;
     this.tcpPublish = tcpPublish;
+    hasStarted = false;
     /* If we're using the emotiv, star the emotiv logging */
     if(withEEG){
       eeglog = new EEGLog();
@@ -75,7 +77,7 @@ public class AttentionExperiment extends WebSocketServer{
       System.out.println("Successfully connected to emotiv");
       eeglog.addUser();
       System.out.println("Successfully added user. Starting logging thread");
-      logger = new EEGLoggingThread(eeglog, outputDir, participantNum, tcpPublish);
+      logger = new EEGLoggingThread(eeglog, outputDir + "/eeg", participantNum, tcpPublish);
     }
 
     // Start timer to schedule recurring trials
@@ -88,7 +90,7 @@ public class AttentionExperiment extends WebSocketServer{
     epochImageFiles = getEpochImages(TEASE_RATIO);
 
     // Create journal, struct for storing participant responses, times, etc
-    journal = new EEGJournal(outputDir, participantNum, getExperimentHeader(), RESPONSE_TIME);
+    journal = new EEGJournal(outputDir + "/log", participantNum, getExperimentHeader(), RESPONSE_TIME);
 
     currentEpoch = 0;
     currentTrial = 0;
@@ -229,67 +231,106 @@ public void sendToAll( String text ) {
   }
 
 
-  private Queue<Integer> newRandomInts(int length){
-    LinkedList<Integer> list = new LinkedList<Integer>();
-    for(int i = 0; i < length; i++){
-      list.add(i);
-    }
-    Collections.shuffle(list);
-    Queue<Integer> queue = list;
-    return queue;
-  }
-
   /* Returns an array filenames specifying images to be shown in each trial.
      Tease ratio is the ratio of images that come from the lure category */
 
   private String[][] getEpochImages(double tease_ratio){
+    int num_lures = (int) Math.ceil(tease_ratio * TRIALS_PER_EPOCH);
+    boolean trial_type;
     String[][] epochImages = new String[NUM_EPOCHS][];
     answers = new boolean[NUM_EPOCHS][TRIALS_PER_EPOCH];
-    // randomly choose faces and places
-    Queue<Integer> male = newRandomInts(NUM_IMAGES_PER_CATEGORY);
-    Queue<Integer> female = newRandomInts(NUM_IMAGES_PER_CATEGORY);
-    Queue<Integer> outdoor = newRandomInts(NUM_IMAGES_PER_CATEGORY);
-    Queue<Integer> indoor = newRandomInts(NUM_IMAGES_PER_CATEGORY);
+    int rand_idx;
 
-    double male_ratio = epochArray[0] ? tease_ratio : 1 - tease_ratio;
-    double outdoor_ratio = epochArray[1] ? tease_ratio : 1 - tease_ratio;
+    // Create lures
+    for(int epoch = 0; epoch < NUM_EPOCHS; epoch++){
 
-    for(int i = 0; i < NUM_EPOCHS; i++){
-      // two images for every trial. This is hardcoded. need to fix
-      String[] thisEpochImages = new String[TRIALS_PER_EPOCH*2];
-      for(int j = 0; j < TRIALS_PER_EPOCH; j++){
-        if(male.isEmpty()){
-          male = newRandomInts(NUM_IMAGES_PER_CATEGORY);
-        }
-        if(female.isEmpty()){
-          female = newRandomInts(NUM_IMAGES_PER_CATEGORY);
-        }
-        if(outdoor.isEmpty()){
-          outdoor = newRandomInts(NUM_IMAGES_PER_CATEGORY);
-        }
-        if(indoor.isEmpty()){
-          indoor = newRandomInts(NUM_IMAGES_PER_CATEGORY);
-        }
-        if(Math.random() > male_ratio){
-          thisEpochImages[j*2] = MALE_FACES + male.remove() + ".jpg";
-          if(trialType[i] == FACES)  answers[i][j] = epochArray[0] ? true : false;
+      String[] thisEpochFaces = new String[TRIALS_PER_EPOCH];
+      String[] thisEpochPlaces = new String[TRIALS_PER_EPOCH];
+
+      for(int i = 0; i < num_lures; i++){
+
+        // faces
+        rand_idx = (int) Math.floor(Math.random() * NUM_IMAGES_PER_CATEGORY);
+        if(epochArray[0]){
+          // Get a random index for this image
+          thisEpochFaces[i] = MALE_FACES + rand_idx + ".jpg";
         }
         else{
-          thisEpochImages[j*2] = FEMALE_FACES + female.remove() + ".jpg";
-          if(trialType[i] == FACES)  answers[i][j] = epochArray[0] ? false : true;
+          thisEpochFaces[i] = FEMALE_FACES + rand_idx + ".jpg";
         }
-        if(Math.random() > outdoor_ratio){
-          thisEpochImages[j*2+1] = OUTDOOR_PLACES + outdoor.remove() + ".jpg";
-          if(trialType[i] == PLACES)  answers[i][j] = epochArray[1] ? true : false;
+
+        // places
+        rand_idx = (int) Math.floor(Math.random() * NUM_IMAGES_PER_CATEGORY);
+        if(epochArray[1]){
+          // Get a random index for this image
+          thisEpochPlaces[i] = OUTDOOR_PLACES + rand_idx + ".jpg";
         }
         else{
-          thisEpochImages[j*2+1] = INDOOR_PLACES + indoor.remove() + ".jpg";
-          if(trialType[i] == PLACES)  answers[i][j] = epochArray[1] ? false : true;
+          thisEpochPlaces[i] = INDOOR_PLACES + rand_idx + ".jpg";
         }
       }
-      epochImages[i] = thisEpochImages;
+      // Create non-lures
+      for(int i = num_lures; i < TRIALS_PER_EPOCH; i++){
+
+        rand_idx = (int) Math.floor(Math.random() * NUM_IMAGES_PER_CATEGORY);
+        if(epochArray[0]){
+          // Get a random index for this image
+          thisEpochFaces[i] = FEMALE_FACES + rand_idx + ".jpg";
+        }
+        else{
+          thisEpochFaces[i] = MALE_FACES + rand_idx + ".jpg";
+        }
+
+        rand_idx = (int) Math.floor(Math.random() * NUM_IMAGES_PER_CATEGORY);
+        if(epochArray[1]){
+          // Get a random index for this image
+          thisEpochPlaces[i] = INDOOR_PLACES + rand_idx + ".jpg";
+        }
+        else{
+          thisEpochPlaces[i] = OUTDOOR_PLACES + rand_idx + ".jpg";
+        }
+      }
+
+      // Create a new array and merge the lures with the non-lures,
+      // first shuffling them
+      Collections.shuffle(Arrays.asList(thisEpochFaces));
+      Collections.shuffle(Arrays.asList(thisEpochPlaces));
+
+      epochImages[epoch] = new String[TRIALS_PER_EPOCH * 2];
+      for(int j = 0; j < TRIALS_PER_EPOCH; j++){
+        epochImages[epoch][j*2] = thisEpochFaces[j];
+        epochImages[epoch][j*2+1] = thisEpochPlaces[j];
+
+        if(trialType[epoch] == FACES){
+          // trial has a face, the lure is a male face
+          if(thisEpochFaces[j].startsWith(FEMALE_FACES) && epochArray[0]){
+            // Answer is correct when the participant should click
+            answers[epoch][j] = true;
+          }
+          else if(thisEpochFaces[j].startsWith(MALE_FACES) && !epochArray[0]){
+            answers[epoch][j] = true;
+          }
+          else{
+            answers[epoch][j] = false;
+          }
+        }
+        else{
+          // trial has an indoor place, the lure is an outdoor place
+          if(thisEpochPlaces[j].startsWith(INDOOR_PLACES) && epochArray[1]){
+            // Answer is correct when the participant should click
+            answers[epoch][j] = true;
+          }
+          else if(thisEpochPlaces[j].startsWith(OUTDOOR_PLACES) && !epochArray[1]){
+            answers[epoch][j] = true;
+          }
+          else{
+            answers[epoch][j] = false;
+          }
+        }
+      }
 
     }
+
 
     return epochImages;
 
@@ -305,21 +346,26 @@ public void sendToAll( String text ) {
     /* Begin the experiment by showing the first instruction */
     public void start(){
       System.out.println("Entering experiment start");
-      epochNum = 0;
-      trialNum = 0;
-      sendToAll(getInstructionCommand(epochNum));
-      System.out.println("Adding first epoch to journal");
-      journal.addEpoch(epochType(epochNum));
-      inInstructs = true;
-      thisRatio = 0.5;
-      // initializes logger, does not start acquisition
-      if(withEEG){
-        System.out.println("Beginning to log EEG data!");
-        logger.start();
-      }
+
     }
 
     public synchronized void doNext(boolean fromTimer){
+      if(!hasStarted){
+        epochNum = 0;
+        trialNum = 0;
+        sendToAll(getInstructionCommand(epochNum));
+        hasStarted = true;
+        System.out.println("Adding first epoch to journal");
+        journal.addEpoch(epochType(epochNum));
+        inInstructs = true;
+        thisRatio = 0.5;
+        // initializes logger, does not start acquisition
+        if(withEEG){
+          System.out.println("Beginning to log EEG data!");
+          logger.start();
+        }
+        return;
+      }
       if(done)  return;
       // can only get here not from timer if we're in instructs
       if(!fromTimer && !inInstructs) return;
@@ -412,6 +458,7 @@ public void sendToAll( String text ) {
     }
 
     public String epochType(int epochNum){
+      BREAK
       String epochType;
       if(epochNum%2 == 0)  epochType = "faces";
       else epochType = "places";
@@ -424,18 +471,20 @@ public void sendToAll( String text ) {
 
     public String getInstructionCommand(int epochNum){
       String instruct;
-      if(epochNum >= NUM_EPOCHS) System.out.println("num epochs is " + epochNum);
+      if(!hasStarted){
+        return "I, Welcome! In each trial, you will be given a task: either to recognize the gender of faces or the location of places. " +
+        "When you are asked to identify faces, click any key when you see a " + (epochArray[0] ? "female" : "male") + " face, but do not" +
+        " click at all when a " + (!epochArray[0] ? "female" : "male") + " face is shown.  Similarly, click any key when a shown location is " +
+        ((epochArray[1]) ? "indoors" : "outdoors") + ", but do not click when the location is " + ((!epochArray[1]) ? "indoors" : "outdoors") +
+        ". When the word 'faces' is shown on the screen before a task, you should complete the face identification task as described above, and ignore the " +
+        "shown places. Similary, when the word 'places' is shown, you should complete the places task and ignore any faces.  Good luck! Press any key to continue";
+      }
+
       if(trialType[epochNum] == FACES){
-        instruct = "I, Click when the shown face is ";
-        instruct += (epochArray[0]) ? "male" : "female";
-        instruct += ". Do not click when shown the face is ";
-        instruct += (epochArray[0]) ? "female" : "male";
+        instruct = "I, FACES";
       }
       else{
-        instruct = "I, Click when the shown place is ";
-        instruct += (epochArray[1]) ? "outdoors" : "indoors";
-        instruct += ". Do not click when shown the place is ";
-        instruct += (epochArray[1]) ? "indoors" : "outdoors";
+        instruct = "I, PLACES";
       }
       return instruct;
     }
@@ -460,7 +509,20 @@ public void sendToAll( String text ) {
 
     try{
       AttentionExperiment thisExperiment =
-        new AttentionExperiment(participantNum, outputDir, feedback, false, tcpPublish);
+        new AttentionExperiment(participantNum, outputDir, feedback, true, tcpPublish);
+        /*
+        System.out.println("Lure is " + (thisExperiment.epochArray[0] ? "male, " : "female, ") + (thisExperiment.epochArray[1] ? "outdoor" : "indoor") );
+        for(int j = 0; j < thisExperiment.epochImageFiles.length; j++){
+          String[] thisEpoch = thisExperiment.epochImageFiles[j];
+          for(int i = 0; i < TRIALS_PER_EPOCH; i++){
+            System.out.println("Trial " + i + " Epoch " + j + " type is " + thisExperiment.trialType[j]);
+            System.out.println(thisEpoch[2*i]);
+            System.out.println(thisEpoch[2*i+1]);
+            System.out.println(thisExperiment.answers[j][i]);
+          }
+        }
+        System.exit(0);
+        */
       thisExperiment.start();
     }
     catch(Exception e){

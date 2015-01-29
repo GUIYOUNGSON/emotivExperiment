@@ -59,6 +59,13 @@
       <mkdir dir="testdata"/>
     </target>
 
+    <target name="delrealdata" depends="">
+      <delete dir="participant_data/eeg"/>
+      <mkdir dir="participant_data/eeg"/>
+      <delete dir="participant_data/log"/>
+      <mkdir dir="participant_data/log"/>
+    </target>
+
 
 
     <target name="server">
@@ -69,8 +76,8 @@
             <path location="emotiv/build"/>
             <path location="emotiv/lib/jna.jar"/>
           </classpath>
-          <arg value="102"/>
-          <arg value="testdata"/>
+          <arg value="${arg0}"/>
+          <arg value="participant_data"/>
           <arg value="0"/>
           <arg value="0"/>
           <!--

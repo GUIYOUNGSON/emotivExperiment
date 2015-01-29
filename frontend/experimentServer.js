@@ -142,7 +142,7 @@ $(function () {
     var args = message.data.split(",");
     // Show an instruction
     if(args[0] == 'I'){
-      showText(args[1]);
+      showText(args.slice(1).join());
     }
     else if(args[0] == 'S'){
       startTrial(args[1], args[2], args[3]);
