@@ -41,7 +41,7 @@
           <path location="emotiv/build"/>
           <path location="emotiv/lib/jna.jar"/>
         </classpath>
-        <arg value="750000"/>
+        <arg value="420000"/>
         <!--
         <jvmarg line="-classic -Xrunhprof:heap=sites,cpu=samples,depth=10,monitor=y,thread=y,doe=y"/>
         15 min <arg value="750000"/>

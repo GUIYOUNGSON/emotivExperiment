@@ -8,15 +8,14 @@ import matplotlib.pyplot as plt
 from scipy import signal
 from sklearn.decomposition import FastICA, PCA
 from scipy import fft
-import mdp
 print "Done importing"
 
+participant_num = 1
 
 # In[66]:
 
 # Load journal data
-trialName = "FacePlaceTrial"
-f = open("../realdata/journal_100_2014.12.22.09.05")
+f = open("../participant_data/log/journal_1_2015.01.28.05.06")
 ar = [line for line in f]
 ar = ar[ar.index("-endheader-\n")+1:]
 # faces are positive 1, places are -1
@@ -84,9 +83,6 @@ print "Done loading"
 
 # In[76]:
 
-# Rereference Electrodes to
-# Future: See Mike Adelson, who uses special weighted moving average to reject eyeblinks.
-
 # Block data into windows
 def window(windowLen, epocharrays, timestamparrays, minsize):
     windowedEpochs = []
@@ -143,7 +139,7 @@ for idx, epoch in enumerate(windowedEpochs):
 # In[78]:
 
 print np.array(windowedEpochs[0][0][30]).shape
-gc.label(np.array([windowedEpochs[0][0][30]]))
+gc.label(np.array([windowedEpochs[0][0][30]]note))
 
 
 # In[88]:

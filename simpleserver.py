@@ -3,6 +3,7 @@
 import socket
 import threading
 import random
+from IPython import embed
 
 eegdata = " ".join([str(random.uniform(0, 400)) for r in xrange(14)])
 
@@ -25,11 +26,9 @@ while 1:
         client, address = s.accept()
         print "Got Client"
     data = client.recv(size)
+    #embed()
     if data:
-        dataBuffer = dataBuffer + data
-    if data[-1] == '\n':
-        print dataBuffer
-        dataBuffer = ""
+        print data
 '''
 def sendData():
     if killThread:

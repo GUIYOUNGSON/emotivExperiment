@@ -46,7 +46,7 @@ public class AttentionExperiment extends WebSocketServer{
   boolean[] epochArray;
   String[][] epochImageFiles;
   boolean[][] answers;
-  boolean[] trialType;
+  boolean[] epochType;
   ExperimentServer thisServer;
   private boolean hasStarted;
 
@@ -218,14 +218,14 @@ public void sendToAll( String text ) {
 
     // trial order is chosen such that the average time of each task is the
     // same: AABBAABBA
-    trialType = new boolean[NUM_EPOCHS];
+    epochType = new boolean[NUM_EPOCHS];
     boolean startCategory = Math.random() > 0.5 ? FACES : PLACES;
     int i = 0;
     while(i < NUM_EPOCHS){
-      trialType[i++] = startCategory;
-      if(NUM_EPOCHS > i)  trialType[i++] = !startCategory;
-      if(NUM_EPOCHS > i)  trialType[i++] = !startCategory;
-      if(NUM_EPOCHS > i)  trialType[i++] = startCategory;
+      epochType[i++] = startCategory;
+      if(NUM_EPOCHS > i)  epochType[i++] = !startCategory;
+      if(NUM_EPOCHS > i)  epochType[i++] = !startCategory;
+      if(NUM_EPOCHS > i)  epochType[i++] = startCategory;
     }
     return twoTasks;
   }
@@ -301,7 +301,7 @@ public void sendToAll( String text ) {
         epochImages[epoch][j*2] = thisEpochFaces[j];
         epochImages[epoch][j*2+1] = thisEpochPlaces[j];
 
-        if(trialType[epoch] == FACES){
+        if(epochType[epoch] == FACES){
           // trial has a face, the lure is a male face
           if(thisEpochFaces[j].startsWith(FEMALE_FACES) && epochArray[0]){
             // Answer is correct when the participant should click
@@ -458,15 +458,7 @@ public void sendToAll( String text ) {
     }
 
     public String epochType(int epochNum){
-      BREAK
-      String epochType;
-      if(epochNum%2 == 0)  epochType = "faces";
-      else epochType = "places";
-
-      if(epochNum >= TRAINING_EPOCHS){
-        epochType += "feedback";
-      }
-      return epochType;
+      return epochType[epochNum] == PLACES ? "places" : "faces";
     }
 
     public String getInstructionCommand(int epochNum){
@@ -480,7 +472,7 @@ public void sendToAll( String text ) {
         "shown places. Similary, when the word 'places' is shown, you should complete the places task and ignore any faces.  Good luck! Press any key to continue";
       }
 
-      if(trialType[epochNum] == FACES){
+      if(epochType[epochNum] == FACES){
         instruct = "I, FACES";
       }
       else{
@@ -515,7 +507,7 @@ public void sendToAll( String text ) {
         for(int j = 0; j < thisExperiment.epochImageFiles.length; j++){
           String[] thisEpoch = thisExperiment.epochImageFiles[j];
           for(int i = 0; i < TRIALS_PER_EPOCH; i++){
-            System.out.println("Trial " + i + " Epoch " + j + " type is " + thisExperiment.trialType[j]);
+            System.out.println("Trial " + i + " Epoch " + j + " type is " + thisExperiment.epochType[j]);
             System.out.println(thisEpoch[2*i]);
             System.out.println(thisEpoch[2*i+1]);
             System.out.println(thisExperiment.answers[j][i]);

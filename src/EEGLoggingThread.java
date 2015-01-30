@@ -25,11 +25,6 @@ class EEGLoggingThread implements Runnable {
   private PrintWriter writer;
   private String fileName;
 
-  PythonCommander python;
-  private boolean classify;
-  private boolean recentClassify = false;
-  private int BUFFER_SIZE = 10;
-  private int currentBuff = 0;
   private String finalData;
 
   private final Semaphore resumed = new Semaphore(1);
@@ -53,7 +48,6 @@ class EEGLoggingThread implements Runnable {
     }
     File file = new File(fileName);
     writer = new PrintWriter(file);
-    this.classify = false;
 
     // Start thread (but do not start collection. Waiting on resume semaphore)
     t = new Thread (this, "logger");
@@ -104,7 +98,6 @@ class EEGLoggingThread implements Runnable {
   public void onData(double[][] data) throws Exception{
     long timeStamp = System.currentTimeMillis();
     long now;
-    String outString = "dale";
     int num_points = data[0].length;
     for(int datum = 0; datum < num_points; datum++){
       try{
@@ -122,7 +115,10 @@ class EEGLoggingThread implements Runnable {
       }
       if(withTcp){
         try{
-          outToServer.writeChars(outString);
+          for(int channel = 0; channel < data.length; channel++){
+            outToServer.writeChars(data[channel][datum] + ",");
+          }
+          outToServer.writeChar('\n');
         }
         catch(Exception e){
           System.out.println("Couldn't send data to server: " + e);
@@ -131,29 +127,6 @@ class EEGLoggingThread implements Runnable {
 
     }
 
-    if(classify){
-      currentBuff++;
-      if(currentBuff != BUFFER_SIZE) return;
-
-      try{
-        recentClassify = python.classify(finalData);
-        currentBuff = 0;
-        finalData = "";
-      }
-      catch(Exception e){
-        throw e;
-      }
-    }
-  }
-
-  /* Begin classification with python */
-  public void beginClassify(PythonCommander python){
-    this.python = python;
-    this.classify = true;
-  }
-
-  public boolean getRecentClassify(){
-    return recentClassify;
   }
 
 
@@ -203,7 +176,7 @@ class EEGLoggingThread implements Runnable {
     int num_secs = Integer.parseInt(args[0]);
 
     try{
-      logger = new EEGLoggingThread(emotiv, outdir, 0, false);
+      logger = new EEGLoggingThread(emotiv, outdir, 0, true);
     }
     catch(Exception e){
       e.printStackTrace();

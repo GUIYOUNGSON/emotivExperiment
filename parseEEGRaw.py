@@ -35,3 +35,37 @@ def plotScalpContour(component, axis):
     Z = f(X,Y)
     #axis.pcolor(X,Y,Z)
     axis.contour(X, Y, Z)
+
+class Journal:
+    def __init__(self, journal_file):
+        epochOnset = []
+        epochOffset = []
+        epochCorrect = []
+        epochType = []
+        # Load journal data
+        f = open(journal_file)
+        ar = [line for line in f]
+        ar = ar[ar.index("-endheader-\n")+1:]
+        stimOnsetIdx = len("StimOnset:")
+        stimOffsetIdx = len("StimOffset:")
+        correctIdx = len("Correct:")
+        epochNum = -1
+
+        for line in ar:
+            if "Type" in line:
+                epochType.append(line.split()[-1])
+                epochNum += 1
+                epochOnset.append([])
+                epochOffset.append([])
+                epochCorrect.append([])
+            else:
+                line = line.split(',')
+                epochOnset[epochNum].append(long(line[2][stimOnsetIdx:]))
+                epochOffset[epochNum].append(long(line[3][stimOffsetIdx:]))
+                epochCorrect[epochNum].append((True if "true" in line[-1] else False))
+
+        self.epochOnset = epochOnset
+        self.epochOffset = epochOffset
+        self.epochCorrect = epochCorrect
+        self.epochType = epochType
+        self.numEpochs = len(epochType)
