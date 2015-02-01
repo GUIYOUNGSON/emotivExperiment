@@ -50,7 +50,6 @@ public class AttentionExperiment extends WebSocketServer{
   ExperimentServer thisServer;
   private boolean hasStarted;
 
-  PythonCommander python;
 
   int currentEpoch;
   int currentTrial;
@@ -95,7 +94,6 @@ public class AttentionExperiment extends WebSocketServer{
     currentEpoch = 0;
     currentTrial = 0;
 
-    python = new PythonCommander();
   }
 
 
@@ -219,7 +217,7 @@ public void sendToAll( String text ) {
     // trial order is chosen such that the average time of each task is the
     // same: AABBAABBA
     epochType = new boolean[NUM_EPOCHS];
-    boolean startCategory = Math.random() > 0.5 ? FACES : PLACES;
+    boolean startCategory = FACES; //Math.random() > 0.5 ? FACES : PLACES;
     int i = 0;
     while(i < NUM_EPOCHS){
       epochType[i++] = startCategory;
@@ -386,18 +384,10 @@ public void sendToAll( String text ) {
         /* Check to see if we're in the feedback phase, if so, edit ratio */
         if(epochNum >= TRAINING_EPOCHS){
           if(epochNum == TRAINING_EPOCHS &&  FEEDBACK_EPOCHS > 0){
-            try{
-              python.buildModel(logger.getFilename(), journal.getFilename());
-            }
-            catch(Exception e){
-              System.out.println("Could not build model!");
-              System.exit(-1);
-            }
 
-            logger.beginClassify(python);
+
           }
           //thisRatio = logger.getRecentClassify() ? 1 : 0;
-          System.out.println("Classified data as " + logger.getRecentClassify());
         }
 
         if(trialNum < TRIALS_PER_EPOCH){
@@ -501,7 +491,7 @@ public void sendToAll( String text ) {
 
     try{
       AttentionExperiment thisExperiment =
-        new AttentionExperiment(participantNum, outputDir, feedback, true, tcpPublish);
+        new AttentionExperiment(participantNum, outputDir, feedback, true, false);
         /*
         System.out.println("Lure is " + (thisExperiment.epochArray[0] ? "male, " : "female, ") + (thisExperiment.epochArray[1] ? "outdoor" : "indoor") );
         for(int j = 0; j < thisExperiment.epochImageFiles.length; j++){
