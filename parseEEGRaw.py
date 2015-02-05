@@ -16,6 +16,7 @@ def parseToArray(fileName):
   for line in f:
     if line != '\n':
         eegData.append( [float(x) for x in line.split(',')]  )
+  f.close()
   return eegData
 
 def parseCedToArray(fileName):
@@ -50,7 +51,7 @@ class Journal:
         stimOffsetIdx = len("StimOffset:")
         correctIdx = len("Correct:")
         epochNum = -1
-
+        f.close()
         for line in ar:
             if "Type" in line:
                 epochType.append(line.split()[-1])
@@ -69,3 +70,45 @@ class Journal:
         self.epochCorrect = epochCorrect
         self.epochType = epochType
         self.numEpochs = len(epochType)
+
+
+class EEGData:
+    def __init__(self, journal, eegdata):
+        eegdata = sorted(eegdata, key=lambda point: long((point[-1])))
+        self.epochs = []
+        offset = 0
+        for epochNum in range(0, journal.numEpochs):
+            thisEpoch = []
+            epochStart = journal.epochOnset[epochNum][0]
+            epochEnd = journal.epochOffset[epochNum][-1]
+            while long(eegdata[offset][-1]) < epochStart:
+                offset += 1
+            thisTime = long(eegdata[offset][-1])
+            while (thisTime >= epochStart) and (thisTime <= epochEnd):
+                thisEpoch.append(eegdata[offset][3:17])
+                offset += 1
+                thisTime = long(eegdata[offset][-1])
+
+            self.epochs.append(thisEpoch)
+
+'''
+class EEGData:
+    def __init__(self, journal, eegdata):
+        eegdata = sorted(eegdata, key=lambda point: long((point[-1])))
+        self.epochs = []
+        offset = 0
+        for epochNum in range(0, journal.numEpochs):
+            thisEpoch = []
+            trial = []
+            for (startTime, endTime) in zip(journal.epochOnset[epochNum], journal.epochOffset[epochNum]):
+                while long(eegdata[offset][-1]) < startTime:
+                    offset += 1
+                thisTime = long(eegdata[offset][-1])
+                while (thisTime >= startTime) and (thisTime <= endTime):
+                    trial.append(eegdata[offset])
+                    offset += 1
+                    thisTime = long(eegdata[offset][-1])
+                thisEpoch.append(np.array(trial))
+                trial = []
+            self.epochs.append(thisEpoch)
+'''
