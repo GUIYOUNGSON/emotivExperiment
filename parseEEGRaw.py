@@ -76,9 +76,11 @@ class EEGData:
     def __init__(self, journal, eegdata):
         eegdata = sorted(eegdata, key=lambda point: long((point[-1])))
         self.epochs = []
+        self.timestamps = []
         offset = 0
         for epochNum in range(0, journal.numEpochs):
             thisEpoch = []
+            thisTimestamps = []
             epochStart = journal.epochOnset[epochNum][0]
             epochEnd = journal.epochOffset[epochNum][-1]
             while long(eegdata[offset][-1]) < epochStart:
@@ -86,10 +88,12 @@ class EEGData:
             thisTime = long(eegdata[offset][-1])
             while (thisTime >= epochStart) and (thisTime <= epochEnd):
                 thisEpoch.append(eegdata[offset][3:17])
+                thisTimestamps.append(eegdata[offset][-1])
                 offset += 1
                 thisTime = long(eegdata[offset][-1])
 
             self.epochs.append(thisEpoch)
+            self.timestamps.append(thisTimestamps)
 
 '''
 class EEGData:
