@@ -17,7 +17,7 @@ public class AttentionExperiment extends WebSocketServer{
   static String eegOutputFileName = "eegdata.csv";
   // see what megan does here...
   static boolean DEBUG = true;
-  static int TRAINING_EPOCHS = 16;
+  static int TRAINING_EPOCHS = 32;
   static int FEEDBACK_EPOCHS = 0;
   static int TRIALS_PER_EPOCH = 50;
   static int NUM_EPOCHS = TRAINING_EPOCHS + FEEDBACK_EPOCHS;
