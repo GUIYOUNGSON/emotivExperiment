@@ -17,7 +17,7 @@ public class AttentionExperiment extends WebSocketServer{
   static String eegOutputFileName = "eegdata.csv";
   // see what megan does here...
   static boolean DEBUG = true;
-  static int TRAINING_EPOCHS = 32;
+  static int TRAINING_EPOCHS = 40;
   static int FEEDBACK_EPOCHS = 0;
   static int TRIALS_PER_EPOCH = 50;
   static int NUM_EPOCHS = TRAINING_EPOCHS + FEEDBACK_EPOCHS;
@@ -69,6 +69,7 @@ public class AttentionExperiment extends WebSocketServer{
     this.withEEG = withEEG;
     this.tcpPublish = tcpPublish;
     hasStarted = false;
+    done = false;
     /* If we're using the emotiv, star the emotiv logging */
     if(withEEG){
       eeglog = new EEGLog();
@@ -113,10 +114,10 @@ public void onMessage( WebSocket conn, String message ) {
     else if(message.charAt(0) == 'Q' && message.charAt(1) == 'q'){
       done = true;
       System.out.println("Quitting ... goodbye!");
-      if(logger != null)  logger.close();
-      System.out.println("Closed logger");
       if(journal != null) journal.close();
       System.out.println("Closed journal");
+      if(logger != null)  logger.close();
+      System.out.println("Closed logger");
       System.exit(0);
     }
 }
@@ -150,8 +151,8 @@ public void onError(WebSocket conn, Exception e){
 public void onClose( WebSocket conn, int code, String reason, boolean remote ){
   System.out.println(conn + " has disconnected");
   done = true;
-  if(logger != null)  logger.close();
   journal.close();
+  if(logger != null)  logger.close();
   return;
 }
 
@@ -365,7 +366,10 @@ public void sendToAll( String text ) {
         }
         return;
       }
-      if(done)  return;
+      if(done){
+        System.out.println("done");
+        return;
+      }
       // can only get here not from timer if we're in instructs
       if(!fromTimer && !inInstructs) return;
       if(!inInstructs){
@@ -412,15 +416,16 @@ public void sendToAll( String text ) {
             sendToAll("Done! Good Job!");
             sendToAll("I, All Done, nice work!");
             done = true;
-            System.out.println("Trying to close logger at " + System.currentTimeMillis());
-            if(logger != null)  logger.close();
             System.out.println("trying to close journal at " + System.currentTimeMillis());
             if(journal != null) journal.close();
+            System.out.println("Trying to close logger at " + System.currentTimeMillis());
+            if(logger != null)  logger.close();
             System.out.println("exiting at " + System.currentTimeMillis());
             System.exit(0);
           }
           else{
             sendToAll(getInstructionCommand(epochNum));
+            sendToAll("T," + (epochType[epochNum] == FACES ? "Faces" : "Places"));
             journal.addEpoch(epochType(epochNum));
             trialNum = 0;
           }
@@ -436,6 +441,7 @@ public void sendToAll( String text ) {
         stimOnset = System.currentTimeMillis();
         thisRatio = 0.5;
         sendToAll(getTrialImagesCommand(epochNum, trialNum, thisRatio));
+        sendToAll("T," + (epochType[epochNum] == FACES ? "Faces" : "Places"));
         timer.schedule(new doNextLater(), RESPONSE_TIME);
       }
     }
@@ -463,6 +469,17 @@ public void sendToAll( String text ) {
         "shown places. Similary, when the word 'places' is shown, you should complete the places task and ignore any faces.  Good luck! Press any key to continue";
       }
 
+      if(epochNum % 10 == 0){
+        instruct = "I, You are on block " + epochNum + " of 40. Take a longer break, if you want! Next block is ";
+        if(epochType[epochNum] == FACES){
+          instruct += "FACES";
+        }
+        else{
+          instruct += "PLACES";
+        }
+
+        return instruct;
+      }
       if(epochType[epochNum] == FACES){
         instruct = "I, FACES";
       }
@@ -493,20 +510,7 @@ public void sendToAll( String text ) {
     try{
       AttentionExperiment thisExperiment =
         new AttentionExperiment(participantNum, outputDir, feedback, true, false);
-        /*
-        System.out.println("Lure is " + (thisExperiment.epochArray[0] ? "male, " : "female, ") + (thisExperiment.epochArray[1] ? "outdoor" : "indoor") );
-        for(int j = 0; j < thisExperiment.epochImageFiles.length; j++){
-          String[] thisEpoch = thisExperiment.epochImageFiles[j];
-          for(int i = 0; i < TRIALS_PER_EPOCH; i++){
-            System.out.println("Trial " + i + " Epoch " + j + " type is " + thisExperiment.epochType[j]);
-            System.out.println(thisEpoch[2*i]);
-            System.out.println(thisEpoch[2*i+1]);
-            System.out.println(thisExperiment.answers[j][i]);
-          }
-        }
-        System.exit(0);
-        */
-      thisExperiment.start();
+        thisExperiment.start();
     }
     catch(Exception e){
       System.out.println("Couldn't start experiment " + e);

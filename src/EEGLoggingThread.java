@@ -30,6 +30,7 @@ class EEGLoggingThread implements Runnable {
   private final Semaphore resumed = new Semaphore(1);
   private final Semaphore readyQuit = new Semaphore(1);
 
+
   public EEGLoggingThread(EEGLog log, String outputDir, int participantNum, boolean withTcp) throws Exception{
     resumed.acquire();
     SimpleDateFormat ft = new SimpleDateFormat("yyyy.MM.dd.hh.mm");
@@ -61,11 +62,11 @@ class EEGLoggingThread implements Runnable {
   public void run() {
     System.out.println("In logging thread");
     try{
-      readyQuit.acquire();
       resumed.acquire();
+      readyQuit.acquire();
     }
     catch(InterruptedException e){
-      // do nothing
+      System.out.println("Interrupted in run");
     }
 
     while(true){
@@ -131,15 +132,20 @@ class EEGLoggingThread implements Runnable {
 
 
   public void close(){
+    if(doQuit){
+      System.out.println("Two functions called doQuit on eeglogging thread");
+    }
     doQuit = true;
     try{
-      System.out.println("Waiting to acquire ready quit");
+      System.out.println("Waiting to acquire ready quit, with que len:" + readyQuit.getQueueLength());
       readyQuit.acquire();
+      System.out.println("Acquired");
     }
     catch(InterruptedException e){
       System.out.println("Got interrupted " + e);
     }
     writer.close();
+    readyQuit.release();
     return;
   }
 

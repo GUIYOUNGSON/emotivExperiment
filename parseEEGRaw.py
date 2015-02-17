@@ -83,10 +83,18 @@ class EEGData:
             thisTimestamps = []
             epochStart = journal.epochOnset[epochNum][0]
             epochEnd = journal.epochOffset[epochNum][-1]
+
+            if offset >= len(eegdata):
+                return
             while long(eegdata[offset][-1]) < epochStart:
+                if offset+1 >= len(eegdata):
+                    return
                 offset += 1
+
             thisTime = long(eegdata[offset][-1])
             while (thisTime >= epochStart) and (thisTime <= epochEnd):
+                if offset+1 >= len(eegdata):
+                    return
                 thisEpoch.append(eegdata[offset][3:17])
                 thisTimestamps.append(eegdata[offset][-1])
                 offset += 1

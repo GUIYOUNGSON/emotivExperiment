@@ -56,7 +56,6 @@ function showPics(image1, image2, opacity2) {
     stimImage2.css("opacity", opacity2);
     if(!loaded1){
       stimImage1.load(function(){
-        console.log("shit loaded")
         $("#image-holder").css('visibility', 'visible');
       });
     }
@@ -76,6 +75,11 @@ function showText(text){
   inInstruct = true;
   $("#image-holder").css('visibility', 'hidden');
   $("#instructs").text(text);
+}
+
+/* Writes below images what this trial type is for */
+function setTrialType(text){
+  $("#trialtype").text(text);
 }
 
 /* Hide everything */
@@ -104,8 +108,6 @@ function startTrial(image1, image2, opacity2){
 
   startTrialTime = new Date().getTime();
   inInstruct = false;
-  console.log("Im 1 is " + image1);
-  console.log("Im 2 is " + image2);
   showPics(image1, image2, opacity2);
 }
 
@@ -146,6 +148,9 @@ $(function () {
     }
     else if(args[0] == 'S'){
       startTrial(args[1], args[2], args[3]);
+    }
+    else if(args[0] == 'T'){
+      setTrialType(args.slice(1).join());
     }
 
 
