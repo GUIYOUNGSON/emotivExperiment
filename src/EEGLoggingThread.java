@@ -18,18 +18,16 @@ class EEGLoggingThread implements Runnable {
   private int PUBLISH_PORT = 6789;
   private static int pointPeriod = 60*1000/128;
 
-  // last channel is timestamp
-  ArrayList<ArrayList<Double>> data;
   DataOutputStream outToServer;
   DataInputStream inFromServer;
   private PrintWriter writer;
   private String fileName;
 
-  private String finalData;
 
   private final Semaphore resumed = new Semaphore(1);
   private final Semaphore readyQuit = new Semaphore(1);
 
+  private int iters = 0;
 
   public EEGLoggingThread(EEGLog log, String outputDir, int participantNum, boolean withTcp) throws Exception{
     resumed.acquire();
@@ -38,10 +36,6 @@ class EEGLoggingThread implements Runnable {
     System.out.println("In logging thread, beginning data acquisition to file " + fileName);
     this.log = log;
     this.withTcp = withTcp;
-    data = new ArrayList<ArrayList<Double>> ();
-    for(int i = 0; i < NUM_CHANNELS; i++){
-      data.add(i, new ArrayList<Double>());
-    }
     if(withTcp){
       System.out.println("Opened EEG data server on port " + PUBLISH_PORT);
       Socket clientSocket = new Socket("localhost", PUBLISH_PORT);
@@ -60,10 +54,14 @@ class EEGLoggingThread implements Runnable {
   }
 
   public void run() {
-    System.out.println("In logging thread");
+    System.out.println("In logging thread " + Thread.currentThread().getId());
     try{
       resumed.acquire();
-      readyQuit.acquire();
+      if(!readyQuit.tryAcquire()){
+        System.out.println("Could not begin logging... is device connected?");
+        return;
+      }
+      System.out.println("Acquisition beginning");
     }
     catch(InterruptedException e){
       System.out.println("Interrupted in run");
@@ -71,17 +69,14 @@ class EEGLoggingThread implements Runnable {
 
     while(true){
       if(doQuit){
+        System.out.println("Releasing readyquit semaphore");
         readyQuit.release();
         return;
       }
+
       try {
         //thisData[channel][datapoints in time]
         double[][] thisData = log.getEEG();
-        for(int i = 0; i < thisData.length; i++){
-          for(Double datum : thisData[i]){
-            data.get(i).add(datum);
-          }
-        }
         onData(thisData);
       }
       catch (Exception e) {
@@ -98,6 +93,10 @@ class EEGLoggingThread implements Runnable {
 
   public void onData(double[][] data) throws Exception{
     long timeStamp = System.currentTimeMillis();
+    iters++;
+    if(iters % 100 == 0){
+      writer.flush();
+    }
     long now;
     int num_points = data[0].length;
     for(int datum = 0; datum < num_points; datum++){
@@ -132,18 +131,29 @@ class EEGLoggingThread implements Runnable {
 
 
   public void close(){
+    writer.flush();
     if(doQuit){
       System.out.println("Two functions called doQuit on eeglogging thread");
     }
     doQuit = true;
     try{
-      System.out.println("Waiting to acquire ready quit, with que len:" + readyQuit.getQueueLength());
-      readyQuit.acquire();
-      System.out.println("Acquired");
+      System.out.println("Acquisition thread is alive? " + t.isAlive());
+      //System.out.println("Waiting to acquire ready quit, with que len:" + readyQuit.getQueueLength());
+      readyQuit.tryAcquire();
+      if(readyQuit.tryAcquire()){
+        System.out.println("Acquired semaphore");
+      }
+      else{
+        System.out.println("Could not acquire semaphore, trying again. Doquit is " + doQuit);
+        readyQuit.acquire();
+        System.out.println("Acquired");
+      }
+
     }
     catch(InterruptedException e){
       System.out.println("Got interrupted " + e);
     }
+    System.out.println("In eeg logging closing writer");
     writer.close();
     readyQuit.release();
     return;
@@ -182,7 +192,7 @@ class EEGLoggingThread implements Runnable {
     int num_secs = Integer.parseInt(args[0]);
 
     try{
-      logger = new EEGLoggingThread(emotiv, outdir, 0, true);
+      logger = new EEGLoggingThread(emotiv, outdir, 10, false);
     }
     catch(Exception e){
       e.printStackTrace();

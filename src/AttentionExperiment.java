@@ -17,7 +17,7 @@ public class AttentionExperiment extends WebSocketServer{
   static String eegOutputFileName = "eegdata.csv";
   // see what megan does here...
   static boolean DEBUG = true;
-  static int TRAINING_EPOCHS = 40;
+  static int TRAINING_EPOCHS = 60;
   static int FEEDBACK_EPOCHS = 0;
   static int TRIALS_PER_EPOCH = 50;
   static int NUM_EPOCHS = TRAINING_EPOCHS + FEEDBACK_EPOCHS;
@@ -218,7 +218,7 @@ public void sendToAll( String text ) {
     // trial order is chosen such that the average time of each task is the
     // same: AABBAABBA
     epochType = new boolean[NUM_EPOCHS];
-    boolean startCategory = FACES; //Math.random() > 0.5 ? FACES : PLACES;
+    boolean startCategory = Math.random() > 0.5 ? FACES : PLACES;
     int i = 0;
     while(i < NUM_EPOCHS){
       epochType[i++] = startCategory;
