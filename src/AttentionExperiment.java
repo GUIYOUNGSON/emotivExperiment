@@ -510,7 +510,7 @@ public void sendToAll( String text ) {
     try{
       AttentionExperiment thisExperiment =
         new AttentionExperiment(participantNum, outputDir, feedback, true, false);
-        thisExperiment.start();
+      thisExperiment.start();
     }
     catch(Exception e){
       System.out.println("Couldn't start experiment " + e);
